@@ -1,0 +1,242 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Recording, RecordingStatus } from '@/types/recording';
+import { FeedbackReport } from '@/types/feedback';
+import { Video, Plus, TrendingUp, Loader2 } from 'lucide-react';
+
+export default function DashboardPage() {
+  const router = useRouter();
+  const [recordings, setRecordings] = useState<(Recording & { feedback?: FeedbackReport })[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+
+  useEffect(() => {
+    // TODO: Fetch user from session/auth
+    setUser({ name: 'Demo User', email: 'demo@example.com' });
+    fetchRecordings();
+  }, []);
+
+  const fetchRecordings = async () => {
+    try {
+      // TODO: Replace with actual API call that includes user authentication
+      const response = await fetch('/api/recordings');
+      if (response.ok) {
+        const data = await response.json();
+        setRecordings(data);
+      }
+    } catch (error) {
+      console.error('Error fetching recordings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getScoreColor = (score: number): string => {
+    if (score >= 80) return 'text-green-600 dark:text-green-400';
+    if (score >= 60) return 'text-yellow-600 dark:text-yellow-400';
+    return 'text-red-600 dark:text-red-400';
+  };
+
+  const getStatusBadge = (status: RecordingStatus) => {
+    const variants: Record<RecordingStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+      [RecordingStatus.UPLOADING]: { label: 'Uploading', variant: 'outline' },
+      [RecordingStatus.PROCESSING]: { label: 'Processing', variant: 'outline' },
+      [RecordingStatus.EXTRACTING_BIOMETRICS]: { label: 'Extracting Data', variant: 'outline' },
+      [RecordingStatus.TRANSCRIBING]: { label: 'Transcribing', variant: 'outline' },
+      [RecordingStatus.ANALYZING]: { label: 'Analyzing', variant: 'outline' },
+      [RecordingStatus.COMPLETE]: { label: 'Complete', variant: 'default' },
+      [RecordingStatus.FAILED]: { label: 'Failed', variant: 'destructive' },
+    };
+
+    const config = variants[status];
+    return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  // Prepare data for progress chart
+  const progressData = recordings
+    .filter((r) => r.feedback)
+    .map((r) => ({
+      date: new Date(r.createdAt).toLocaleDateString(),
+      score: r.feedback?.overallScore || 0,
+    }))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <p className="text-muted-foreground">
+              Welcome back, {user?.name || 'User'}
+            </p>
+          </div>
+          <Link href="/practice">
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
+              New Practice Session
+            </Button>
+          </Link>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Sessions</p>
+                  <p className="text-2xl font-bold">{recordings.length}</p>
+                </div>
+                <Video className="w-8 h-8 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Average Score</p>
+                  <p className="text-2xl font-bold">
+                    {recordings.filter((r) => r.feedback).length > 0
+                      ? Math.round(
+                          recordings
+                            .filter((r) => r.feedback)
+                            .reduce((sum, r) => sum + (r.feedback?.overallScore || 0), 0) /
+                            recordings.filter((r) => r.feedback).length
+                        )
+                      : 'N/A'}
+                  </p>
+                </div>
+                <TrendingUp className="w-8 h-8 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Completed</p>
+                  <p className="text-2xl font-bold">
+                    {recordings.filter((r) => r.status === RecordingStatus.COMPLETE).length}
+                  </p>
+                </div>
+                <Badge variant="default">Complete</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Progress Chart */}
+        {progressData.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Progress Over Time</CardTitle>
+              <CardDescription>Your speaking score improvements</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={progressData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis domain={[0, 100]} />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="score"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    name="Score"
+                    dot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Recordings List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Recordings</CardTitle>
+            <CardDescription>View and manage your practice sessions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {recordings.length === 0 ? (
+              <div className="text-center py-12">
+                <Video className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No recordings yet</h3>
+                <p className="text-muted-foreground mb-4">
+                  Start your first practice session to see your recordings here
+                </p>
+                <Link href="/practice">
+                  <Button>Start Practicing</Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {recordings.map((recording) => (
+                  <Card
+                    key={recording.id}
+                    className="cursor-pointer hover:border-primary transition-colors"
+                    onClick={() => router.push(`/feedback/${recording.id}`)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="w-16 h-16 bg-muted">
+                            <AvatarFallback>
+                              <Video className="w-8 h-8" />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <h3 className="font-semibold">
+                              Practice Session
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(recording.createdAt).toLocaleDateString()} at{' '}
+                              {new Date(recording.createdAt).toLocaleTimeString()}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              {getStatusBadge(recording.status)}
+                              {recording.feedback && (
+                                <span className={`text-lg font-bold ${getScoreColor(recording.feedback.overallScore)}`}>
+                                  {recording.feedback.overallScore}/100
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="icon">
+                          →
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

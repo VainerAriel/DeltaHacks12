@@ -1,0 +1,19 @@
+export enum RecordingStatus {
+  UPLOADING = 'uploading',
+  PROCESSING = 'processing',
+  EXTRACTING_BIOMETRICS = 'extracting_biometrics',
+  TRANSCRIBING = 'transcribing',
+  ANALYZING = 'analyzing',
+  COMPLETE = 'complete',
+  FAILED = 'failed',
+}
+
+export interface Recording {
+  id: string;
+  userId: string;
+  videoUrl: string;
+  duration: number; // in seconds
+  status: RecordingStatus;
+  createdAt: Date;
+  thumbnailUrl?: string;
+}
