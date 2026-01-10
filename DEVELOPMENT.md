@@ -10,7 +10,7 @@
 2. **Set up environment variables**
    - Copy `env.example` to `.env.local`
    - Add your MongoDB URI (required)
-   - API keys are optional - the app works with mock data
+   - Add your API keys (ElevenLabs and Gemini are required)
 
 3. **Run development server**
    ```bash
@@ -29,10 +29,10 @@
 - No password hashing required
 - Middleware is disabled - all routes are accessible
 
-### Mock Data
-- **Presage**: Generates realistic mock biometric data
-- **ElevenLabs**: Returns sample transcription if API key not set
-- **Gemini**: Returns sample feedback if API key not set
+### Presage Integration
+- **Presage**: Uses placeholder data ("MATTHEW IS DOING IT" / "67") until SDK integration is complete
+- **ElevenLabs**: Requires API key for transcription
+- **Gemini**: Requires API key for analysis
 
 ### Database
 - Collections are created automatically on first use
@@ -56,7 +56,7 @@ components/
 
 lib/
   ├── db/               # MongoDB connection
-  ├── presage/          # Biometric processing (mock)
+  ├── presage/          # Biometric processing (placeholder data)
   ├── elevenlabs/       # Transcription
   └── gemini/           # AI analysis
 
@@ -75,10 +75,9 @@ types/                   # TypeScript definitions
 2. Use shadcn/ui components from `components/ui/`
 3. Import types from `types/`
 
-### Testing Without API Keys
-- All API integrations have mock data fallbacks
-- Just leave API keys empty in `.env.local`
-- Mock data is automatically generated
+### API Keys Required
+- ElevenLabs and Gemini API keys are required for full functionality
+- Presage uses placeholder data until SDK integration is complete
 
 ## Troubleshooting
 
@@ -95,7 +94,7 @@ types/                   # TypeScript definitions
 ### Processing Pipeline Fails
 - Check browser console for errors
 - Verify API keys if using real APIs
-- Mock data should work without API keys
+- Ensure API keys are properly configured in `.env.local`
 
 ## Production Checklist
 

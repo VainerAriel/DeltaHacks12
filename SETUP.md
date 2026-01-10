@@ -35,12 +35,12 @@
    - Open [http://localhost:3000](http://localhost:3000)
    - Register a new account or login
 
-## Testing Without API Keys
+## API Keys Required
 
-The application includes mock data generators, so you can test the full flow without API keys:
-- Presage biometric data: Mock data is generated automatically
-- ElevenLabs transcription: Returns mock transcription if API key is missing
-- Gemini analysis: Returns mock feedback if API key is missing
+The application requires API keys for full functionality:
+- **ElevenLabs API key**: Required for audio transcription
+- **Google Gemini API key**: Required for AI analysis and feedback generation
+- **Presage**: Uses placeholder data until SDK integration is complete
 
 ## Presage SDK Integration
 
