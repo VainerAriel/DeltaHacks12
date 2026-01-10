@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, collections } from '@/lib/db/mongodb';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,8 +37,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Simple password check for development (hash in production)
-    if (user.password !== password) {
+    // Verify password using bcrypt
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
@@ -45,9 +47,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate JWT token
+    const secret = process.env.NEXTAUTH_SECRET;
+    if (!secret) {
+      console.error('NEXTAUTH_SECRET is not set');
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+    
     const token = jwt.sign(
       { userId: user._id.toString(), email: user.email },
-      process.env.NEXTAUTH_SECRET || 'your-secret-key',
+      secret,
       { expiresIn: '7d' }
     );
 

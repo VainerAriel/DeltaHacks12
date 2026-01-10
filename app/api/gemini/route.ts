@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, collections } from '@/lib/db/mongodb';
 import { analyzePresentation } from '@/lib/gemini/analyzer';
 import { RecordingStatus } from '@/types/recording';
+import { BiometricData } from '@/types/biometrics';
+import { Transcription } from '@/types/transcription';
 import { ObjectId } from 'mongodb';
 
 export async function POST(request: NextRequest) {
@@ -59,8 +61,8 @@ export async function POST(request: NextRequest) {
 
     // Analyze presentation
     const feedbackReport = await analyzePresentation(
-      biometricData as any,
-      transcription as any
+      biometricData as BiometricData,
+      transcription as Transcription
     );
     feedbackReport.recordingId = recordingId;
 

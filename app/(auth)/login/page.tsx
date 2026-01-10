@@ -21,7 +21,6 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      // TODO: Implement actual authentication
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

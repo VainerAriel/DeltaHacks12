@@ -31,6 +31,7 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete }:
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
+        timerRef.current = null;
       }
       if (videoUrl) {
         URL.revokeObjectURL(videoUrl);
@@ -110,6 +111,10 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete }:
       if (isPaused) {
         mediaRecorderRef.current.resume();
         setIsPaused(false);
+        // Clear any existing interval before creating a new one
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+        }
         timerRef.current = setInterval(() => {
           setRecordedTime((prev) => prev + 1);
         }, 1000);
@@ -118,6 +123,7 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete }:
         setIsPaused(true);
         if (timerRef.current) {
           clearInterval(timerRef.current);
+          timerRef.current = null;
         }
       }
     }
@@ -130,6 +136,7 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete }:
       setIsPaused(false);
       if (timerRef.current) {
         clearInterval(timerRef.current);
+        timerRef.current = null;
       }
     }
   };
@@ -379,7 +386,11 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete }:
 
             {videoUrl && !isUploading && (
               <Button
-                onClick={() => uploadVideo(videoBlob!)}
+                onClick={() => {
+                  if (videoBlob) {
+                    uploadVideo(videoBlob);
+                  }
+                }}
                 disabled={!videoBlob}
                 className="gap-2"
               >

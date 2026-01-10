@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, collections } from '@/lib/db/mongodb';
+import { getUserIdFromRequest } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    // TODO: Get user ID from session/auth
-    const userId = 'demo-user'; // TODO: Extract from JWT token
+    // Get user ID from JWT token
+    const userId = getUserIdFromRequest(request);
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Please log in.' },
+        { status: 401 }
+      );
+    }
 
     let db;
     try {
@@ -24,25 +32,32 @@ export async function GET(request: NextRequest) {
       .sort({ createdAt: -1 })
       .toArray();
 
-    // Fetch feedback for each recording
-    const recordingsWithFeedback = await Promise.all(
-      recordings.map(async (recording) => {
-        const feedback = await db.collection(collections.feedbackReports).findOne({
-          recordingId: recording._id.toString(),
-        });
+    // Optimize: Fetch all feedback reports in a single query instead of N queries
+    const recordingIds = recordings.map(r => r._id.toString());
+    const feedbackReports = await db
+      .collection(collections.feedbackReports)
+      .find({ recordingId: { $in: recordingIds } })
+      .toArray();
 
-        return {
-          id: recording._id.toString(),
-          ...recording,
-          feedback: feedback
-            ? {
-                id: feedback._id.toString(),
-                ...feedback,
-              }
-            : undefined,
-        };
-      })
+    // Create a map for O(1) lookup
+    const feedbackMap = new Map(
+      feedbackReports.map(fb => [fb.recordingId, fb])
     );
+
+    // Combine recordings with their feedback
+    const recordingsWithFeedback = recordings.map((recording) => {
+      const feedback = feedbackMap.get(recording._id.toString());
+      return {
+        id: recording._id.toString(),
+        ...recording,
+        feedback: feedback
+          ? {
+              id: feedback._id.toString(),
+              ...feedback,
+            }
+          : undefined,
+      };
+    });
 
     return NextResponse.json(recordingsWithFeedback);
   } catch (error) {

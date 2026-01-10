@@ -53,21 +53,38 @@ export async function POST(request: NextRequest) {
       { $set: { status: RecordingStatus.EXTRACTING_BIOMETRICS } }
     );
 
-    // Process with Presage
-    const videoUrl = recording.videoUrl;
-    const biometricData = await processPresageData(videoUrl);
-    biometricData.recordingId = recordingId;
+    try {
+      // Process with Presage
+      const videoUrl = recording.videoUrl;
+      const biometricData = await processPresageData(videoUrl);
+      biometricData.recordingId = recordingId;
 
-    // Store biometric data
-    // Generate a new ObjectId for the biometric data document
-    const biometricId = new ObjectId();
-    await db.collection(collections.biometricData).insertOne({
-      _id: biometricId,
-      ...biometricData,
-      id: biometricId.toString(),
-    });
+      // Store biometric data
+      // Generate a new ObjectId for the biometric data document
+      const biometricId = new ObjectId();
+      await db.collection(collections.biometricData).insertOne({
+        _id: biometricId,
+        ...biometricData,
+        id: biometricId.toString(),
+      });
 
-    return NextResponse.json(biometricData);
+      // Update status back to processing (or completed if transcription is also done)
+      await db.collection(collections.recordings).updateOne(
+        { _id: new ObjectId(recordingId) },
+        { $set: { status: RecordingStatus.PROCESSING } }
+      );
+
+      return NextResponse.json(biometricData);
+    } catch (processingError) {
+      // Update status to failed on failure
+      await db.collection(collections.recordings).updateOne(
+        { _id: new ObjectId(recordingId) },
+        { $set: { status: RecordingStatus.FAILED } }
+      ).catch(() => {
+        // Ignore error if status update fails
+      });
+      throw processingError;
+    }
   } catch (error) {
     console.error('Presage processing error:', error);
     return NextResponse.json(

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, collections } from '@/lib/db/mongodb';
 import jwt from 'jsonwebtoken';
 import { ObjectId } from 'mongodb';
+import bcrypt from 'bcrypt';
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,6 +11,15 @@ export async function POST(request: NextRequest) {
     if (!name || !email || !password) {
       return NextResponse.json(
         { error: 'Name, email, and password are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: 'Invalid email format' },
         { status: 400 }
       );
     }
@@ -44,13 +54,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create user (password stored as plain text for development - hash in production)
+    // Hash password before storing
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Create user
     const userId = new ObjectId();
     const user = {
       _id: userId,
       email,
       name,
-      password, // In production, hash this with bcrypt
+      password: hashedPassword,
       createdAt: new Date(),
       preferences: {
         language: 'en',
@@ -62,9 +76,18 @@ export async function POST(request: NextRequest) {
     await db.collection(collections.users).insertOne(user);
 
     // Generate JWT token
+    const secret = process.env.NEXTAUTH_SECRET;
+    if (!secret) {
+      console.error('NEXTAUTH_SECRET is not set');
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+    
     const token = jwt.sign(
       { userId: userId.toString(), email },
-      process.env.NEXTAUTH_SECRET || 'your-secret-key',
+      secret,
       { expiresIn: '7d' }
     );
 

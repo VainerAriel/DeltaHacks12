@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, collections } from '@/lib/db/mongodb';
 import { Recording, RecordingStatus } from '@/types/recording';
 import { ObjectId } from 'mongodb';
+import { getUserIdFromRequest } from '@/lib/auth';
+import { uploadToS3, isS3Configured } from '@/lib/s3';
+import { getVideoDuration } from '@/lib/video-duration';
 
 // For local storage (fallback if S3 is not configured)
 import { writeFile, mkdir } from 'fs/promises';
@@ -40,8 +43,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user ID from auth token or use demo user for development
-    const userId = 'demo-user'; // TODO: Extract from JWT token
+    // Get user ID from JWT token
+    const userId = getUserIdFromRequest(request);
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Please log in.' },
+        { status: 401 }
+      );
+    }
 
     let videoUrl: string;
     const recordingId = new ObjectId().toString();
@@ -60,12 +70,35 @@ export async function POST(request: NextRequest) {
     const fileExtension = getFileExtension(videoFile.type);
     const fileName = `${recordingId}.${fileExtension}`;
 
+    // Extract video duration
+    let duration = 0;
+    try {
+      console.log('[Upload] Extracting video duration...');
+      duration = await getVideoDuration(videoFile, videoFile.type);
+      console.log('[Upload] Video duration:', duration, 'seconds');
+    } catch (error) {
+      console.error('[Upload] Failed to extract video duration:', error);
+      // Continue with duration = 0 if extraction fails
+    }
+
     // Upload to S3 or local storage
-    if (process.env.AWS_S3_BUCKET && process.env.AWS_ACCESS_KEY_ID) {
-      // TODO: Implement S3 upload
-      // const s3Url = await uploadToS3(videoFile, recordingId);
-      // videoUrl = s3Url;
-      videoUrl = `/uploads/${fileName}`;
+    if (isS3Configured()) {
+      try {
+        console.log('[Upload] Uploading to S3...');
+        videoUrl = await uploadToS3(videoFile, fileName, videoFile.type);
+        console.log('[Upload] Successfully uploaded to S3:', videoUrl);
+      } catch (error) {
+        console.error('[Upload] S3 upload failed:', error);
+        // Fallback to local storage if S3 upload fails
+        console.log('[Upload] Falling back to local storage...');
+        const uploadsDir = join(process.cwd(), 'public', 'uploads');
+        await mkdir(uploadsDir, { recursive: true });
+        const bytes = await videoFile.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+        const filePath = join(uploadsDir, fileName);
+        await writeFile(filePath, buffer);
+        videoUrl = `/uploads/${fileName}`;
+      }
     } else {
       // Local storage fallback
       const uploadsDir = join(process.cwd(), 'public', 'uploads');
@@ -97,9 +130,6 @@ export async function POST(request: NextRequest) {
       // Use /uploads/ path - will be served by app/uploads/[...path]/route.ts
       videoUrl = `/uploads/${fileName}`;
     }
-
-    // Get video duration (simplified - in production, use ffmpeg or similar)
-    const duration = 0; // TODO: Extract actual duration
 
     // Create recording document
     let db;

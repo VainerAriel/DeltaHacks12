@@ -53,25 +53,50 @@ export async function POST(request: NextRequest) {
       { $set: { status: RecordingStatus.TRANSCRIBING } }
     );
 
-    // Transcribe audio using ElevenLabs
-    const videoUrl = recording.videoUrl;
-    const transcription = await transcribeAudio(videoUrl);
-    transcription.recordingId = recordingId;
+    try {
+      // Transcribe audio using ElevenLabs
+      const videoUrl = recording.videoUrl;
+      const transcription = await transcribeAudio(videoUrl);
+      transcription.recordingId = recordingId;
 
-    // Store transcription
-    // Generate a new ObjectId for the transcription document
-    const transcriptionId = new ObjectId();
-    await db.collection(collections.transcriptions).insertOne({
-      _id: transcriptionId,
-      ...transcription,
-      id: transcriptionId.toString(),
-    });
+      // Store transcription
+      // Generate a new ObjectId for the transcription document
+      const transcriptionId = new ObjectId();
+      await db.collection(collections.transcriptions).insertOne({
+        _id: transcriptionId,
+        ...transcription,
+        id: transcriptionId.toString(),
+      });
 
-    return NextResponse.json(transcription);
+      // Update status to complete
+      await db.collection(collections.recordings).updateOne(
+        { _id: new ObjectId(recordingId) },
+        { $set: { status: RecordingStatus.COMPLETE } }
+      );
+
+      return NextResponse.json(transcription);
+    } catch (transcriptionError) {
+      // Update status to failed on failure
+      await db.collection(collections.recordings).updateOne(
+        { _id: new ObjectId(recordingId) },
+        { $set: { status: RecordingStatus.FAILED } }
+      ).catch(() => {
+        // Ignore error if status update fails
+      });
+      throw transcriptionError;
+    }
   } catch (error) {
-    console.error('ElevenLabs transcription error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('ElevenLabs transcription error:', errorMessage);
+    if (errorStack) {
+      console.error('Error stack:', errorStack);
+    }
     return NextResponse.json(
-      { error: 'Failed to transcribe audio' },
+      { 
+        error: 'Failed to transcribe audio',
+        details: errorMessage
+      },
       { status: 500 }
     );
   }

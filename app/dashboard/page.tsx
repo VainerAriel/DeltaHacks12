@@ -19,18 +19,34 @@ export default function DashboardPage() {
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
 
   useEffect(() => {
-    // TODO: Fetch user from session/auth
-    setUser({ name: 'Demo User', email: 'demo@example.com' });
+    fetchUser();
     fetchRecordings();
   }, []);
 
+  const fetchUser = async () => {
+    try {
+      const response = await fetch('/api/auth/me');
+      if (response.ok) {
+        const data = await response.json();
+        setUser({ name: data.name, email: data.email });
+      } else if (response.status === 401) {
+        // User is not authenticated, redirect to login
+        router.push('/login');
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+    }
+  };
+
   const fetchRecordings = async () => {
     try {
-      // TODO: Replace with actual API call that includes user authentication
       const response = await fetch('/api/recordings');
       if (response.ok) {
         const data = await response.json();
         setRecordings(data);
+      } else if (response.status === 401) {
+        // User is not authenticated, redirect to login
+        router.push('/login');
       }
     } catch (error) {
       console.error('Error fetching recordings:', error);

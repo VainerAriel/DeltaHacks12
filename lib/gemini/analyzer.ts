@@ -30,8 +30,12 @@ export async function analyzePresentation(
     const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
     // Calculate average metrics for prompt
-    const avgHeartRate = biometricData.heartRate.reduce((a, b) => a + b, 0) / biometricData.heartRate.length;
-    const avgBreathing = biometricData.breathing.reduce((a, b) => a + b, 0) / biometricData.breathing.length;
+    const avgHeartRate = biometricData.heartRate.length > 0
+      ? biometricData.heartRate.reduce((a, b) => a + b, 0) / biometricData.heartRate.length
+      : 70; // Default heart rate if no data
+    const avgBreathing = biometricData.breathing.length > 0
+      ? biometricData.breathing.reduce((a, b) => a + b, 0) / biometricData.breathing.length
+      : 12; // Default breathing rate if no data
     const expressions = biometricData.facialExpressions.map(e => e.expression);
 
     const prompt = `You are analyzing a public speaking practice session for an ESL learner.
@@ -92,7 +96,15 @@ Only return the JSON, no additional text.`;
       jsonText = jsonText.replace(/```\n?/g, '');
     }
 
-    const parsed = JSON.parse(jsonText);
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch (parseError) {
+      console.error('Failed to parse Gemini JSON response:', parseError);
+      console.error('Response text:', jsonText.substring(0, 500)); // Log first 500 chars
+      // Return mock data on parse error
+      return generateMockFeedbackReport(biometricData, transcription);
+    }
 
     // Map to FeedbackReport structure
     return {
@@ -128,8 +140,12 @@ function generateMockFeedbackReport(
   biometricData: BiometricData,
   transcription: Transcription
 ): FeedbackReport {
-  const avgHeartRate = biometricData.heartRate.reduce((a, b) => a + b, 0) / biometricData.heartRate.length;
-  const avgBreathing = biometricData.breathing.reduce((a, b) => a + b, 0) / biometricData.breathing.length;
+  const avgHeartRate = biometricData.heartRate.length > 0
+    ? biometricData.heartRate.reduce((a, b) => a + b, 0) / biometricData.heartRate.length
+    : 70; // Default heart rate if no data
+  const avgBreathing = biometricData.breathing.length > 0
+    ? biometricData.breathing.reduce((a, b) => a + b, 0) / biometricData.breathing.length
+    : 12; // Default breathing rate if no data
 
   const recommendations: Recommendation[] = [
     {

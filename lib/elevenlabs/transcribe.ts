@@ -1,8 +1,26 @@
 import { Transcription, SpeechMetrics, Word, WordTimestamp } from '@/types/transcription';
+import { extractAudioFromBuffer } from '@/lib/audio-extract';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
 
 if (!process.env.ELEVENLABS_API_KEY) {
-  console.warn('ELEVENLABS_API_KEY not set. Transcription will use mock data.');
+  console.error('ELEVENLABS_API_KEY is required but not set. Please configure it in your .env.local file.');
 }
+
+// Type definitions for ElevenLabs API response
+type ElevenLabsWord = {
+  word?: string;
+  text?: string;
+  start?: number;
+  start_time?: number;
+  end?: number;
+  end_time?: number;
+  confidence?: number;
+};
+
+type ElevenLabsSegment = {
+  words?: ElevenLabsWord[];
+};
 
 /**
  * Transcribe audio from video using ElevenLabs Speech-to-Text API
@@ -11,122 +29,196 @@ if (!process.env.ELEVENLABS_API_KEY) {
  */
 export async function transcribeAudio(videoUrl: string): Promise<Transcription> {
   if (!process.env.ELEVENLABS_API_KEY) {
-    // Return mock data if API key is not set
-    return generateMockTranscription(videoUrl);
+    throw new Error('ELEVENLABS_API_KEY is required but not set. Please configure it in your .env.local file.');
   }
 
   try {
-    // Download video file and extract audio
-    let audioBlob: Blob;
+    // Download video file
+    let videoBuffer: Buffer;
+    let videoExtension = 'webm';
     
     if (videoUrl.startsWith('http')) {
       // Remote URL - fetch the file
       const response = await fetch(videoUrl);
-      audioBlob = await response.blob();
+      if (!response.ok) {
+        throw new Error(`Failed to fetch video from URL: ${response.status} ${response.statusText}`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      videoBuffer = Buffer.from(arrayBuffer);
+      
+      // Try to determine extension from URL
+      try {
+        const urlPath = new URL(videoUrl).pathname;
+        const extMatch = urlPath.match(/\.(\w+)$/);
+        if (extMatch) {
+          videoExtension = extMatch[1];
+        }
+      } catch (urlError) {
+        // If URL parsing fails, use default extension
+        console.warn('[Transcribe] Failed to parse URL, using default extension:', urlError);
+      }
     } else {
       // Local file path - read from filesystem
-      const { readFile } = await import('fs/promises');
-      const { join } = await import('path');
+      // Security: prevent path traversal attacks
+      if (videoUrl.includes('..')) {
+        throw new Error('Invalid file path: path traversal detected');
+      }
       
-      // Convert relative path to absolute
       const filePath = videoUrl.startsWith('/')
         ? join(process.cwd(), 'public', videoUrl)
-        : join(process.cwd(), videoUrl);
+        : join(process.cwd(), 'public', 'uploads', videoUrl);
       
-      const fileBuffer = await readFile(filePath);
-      audioBlob = new Blob([fileBuffer]);
+      videoBuffer = await readFile(filePath);
+      
+      // Determine extension from file path
+      const extMatch = filePath.match(/\.(\w+)$/);
+      if (extMatch) {
+        videoExtension = extMatch[1];
+      }
     }
 
-    // TODO: Update this based on actual ElevenLabs Speech-to-Text API
-    // ElevenLabs may have different endpoints/format - check their documentation
-    // For now, using a generic structure that can be adjusted
-    
-    // Convert audio blob to format expected by ElevenLabs
-    // Note: ElevenLabs API format may require FormData or different structure
-    const formData = new FormData();
-    formData.append('audio', audioBlob, 'audio.webm');
-    
+    // Extract audio from video
+    console.log('[Transcribe] Extracting audio from video...');
+    const audioBuffer = await extractAudioFromBuffer(videoBuffer, videoExtension);
+    console.log('[Transcribe] Audio extracted, size:', audioBuffer.length, 'bytes');
+
+    if (!audioBuffer || audioBuffer.length === 0) {
+      throw new Error('Failed to extract audio from video - audio buffer is empty');
+    }
+
     // Call ElevenLabs Speech-to-Text API
-    // Update endpoint and format based on actual ElevenLabs API documentation
-    const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
-      method: 'POST',
-      headers: {
-        'xi-api-key': process.env.ELEVENLABS_API_KEY,
-        // Remove Content-Type header when using FormData - browser sets it automatically
-      },
-      body: formData,
-    });
+    // Use FormData to properly construct multipart/form-data
+    // In Node.js 18+, FormData and File are available globally
+    const formData = new FormData();
+    
+    // Create File object with audio buffer
+    // In Node.js, File constructor should work, but we need to ensure it's a proper Blob first
+    const audioBlob = new Blob([audioBuffer], { type: 'audio/wav' });
+    const audioFile = new File([audioBlob], 'audio.wav', { type: 'audio/wav' });
+    
+    // ElevenLabs API expects 'file' parameter, not 'audio'
+    formData.append('file', audioFile);
+    
+    // Add required model_id parameter
+    // Available models: 'scribe_v1', 'scribe_v1_experimental', 'scribe_v2'
+    // Using 'scribe_v2' as default (can be configured via env var)
+    const modelId = process.env.ELEVENLABS_STT_MODEL_ID || 'scribe_v2';
+    formData.append('model_id', modelId);
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('ElevenLabs API error:', error);
-      throw new Error(`ElevenLabs API error: ${response.status}`);
-    }
+    console.log('[Transcribe] Calling ElevenLabs API');
+    console.log('[Transcribe] Audio size:', audioBuffer.length, 'bytes');
+    console.log('[Transcribe] API Key present:', !!process.env.ELEVENLABS_API_KEY);
+    console.log('[Transcribe] API Key length:', process.env.ELEVENLABS_API_KEY?.length || 0);
 
-    const result = await response.json();
-
-    // Process ElevenLabs response
-    // Note: ElevenLabs response format may vary - adjust based on actual API response
-    const text = result.text || '';
-    const words: Word[] = [];
-    const wordTimestamps: WordTimestamp[] = [];
-
-    // If ElevenLabs provides word-level timestamps
-    if (result.words && Array.isArray(result.words)) {
-      result.words.forEach((word: any) => {
-        words.push({
-          word: word.word || word.text || '',
-          start: word.start || 0,
-          end: word.end || 0,
-          confidence: word.confidence || 0.9,
-        });
-        wordTimestamps.push({
-          word: word.word || word.text || '',
-          timestamp: word.start || 0,
-        });
+    try {
+      const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+        method: 'POST',
+        headers: {
+          'xi-api-key': process.env.ELEVENLABS_API_KEY!,
+          // Don't set Content-Type header - fetch will set it with boundary automatically
+        },
+        body: formData,
       });
-    } else {
-      // Fallback: generate word timestamps from text
-      const textWords = text.split(/\s+/);
-      let currentTime = 0;
-      textWords.forEach((word) => {
-        const start = currentTime;
-        const duration = 0.3 + Math.random() * 0.5;
-        const end = start + duration;
-        
-        words.push({
-          word: word.replace(/[.,!?]/g, ''),
-          start,
-          end,
-          confidence: 0.9,
+
+      console.log('[Transcribe] ElevenLabs API response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('[Transcribe] ElevenLabs API error response:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: error
         });
-        wordTimestamps.push({
-          word: word.replace(/[.,!?]/g, ''),
-          timestamp: start,
+        throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText} - ${error}`);
+      }
+
+      const result = await response.json();
+      console.log('[Transcribe] ElevenLabs API response received');
+
+      // Process ElevenLabs response
+      // Based on ElevenLabs API documentation, response should contain text and word timestamps
+      const text = result.text || result.transcript || '';
+      const words: Word[] = [];
+      const wordTimestamps: WordTimestamp[] = [];
+
+      // If ElevenLabs provides word-level timestamps
+      if (result.words && Array.isArray(result.words)) {
+        result.words.forEach((word: ElevenLabsWord) => {
+          words.push({
+            word: word.word || word.text || '',
+            start: word.start || word.start_time || 0,
+            end: word.end || word.end_time || 0,
+            confidence: word.confidence || 0.9,
+          });
+          wordTimestamps.push({
+            word: word.word || word.text || '',
+            timestamp: word.start || word.start_time || 0,
+          });
         });
-        currentTime = end + (Math.random() * 0.5);
-      });
+      } else if (result.segments && Array.isArray(result.segments)) {
+        // Alternative format: segments with words
+        result.segments.forEach((segment: ElevenLabsSegment) => {
+          if (segment.words && Array.isArray(segment.words)) {
+            segment.words.forEach((word: ElevenLabsWord) => {
+              words.push({
+                word: word.word || word.text || '',
+                start: word.start || word.start_time || 0,
+                end: word.end || word.end_time || 0,
+                confidence: word.confidence || 0.9,
+              });
+              wordTimestamps.push({
+                word: word.word || word.text || '',
+                timestamp: word.start || word.start_time || 0,
+              });
+            });
+          }
+        });
+      } else {
+        // Fallback: generate word timestamps from text
+        const textWords = text.split(/\s+/);
+        let currentTime = 0;
+        textWords.forEach((word) => {
+          const start = currentTime;
+          const duration = 0.3 + Math.random() * 0.5;
+          const end = start + duration;
+          
+          words.push({
+            word: word.replace(/[.,!?]/g, ''),
+            start,
+            end,
+            confidence: 0.9,
+          });
+          wordTimestamps.push({
+            word: word.replace(/[.,!?]/g, ''),
+            timestamp: start,
+          });
+          currentTime = end + (Math.random() * 0.5);
+        });
+      }
+
+      // Calculate speech metrics
+      const duration = words.length > 0 
+        ? Math.max(...words.map(w => w.end))
+        : 0;
+      const metrics = calculateSpeechMetrics(text, words, duration);
+
+      return {
+        id: `transcription-${Date.now()}`,
+        recordingId: '', // Will be set by caller
+        text,
+        words,
+        wordTimestamps,
+        metrics,
+        createdAt: new Date(),
+      };
+    } catch (fetchError) {
+      console.error('[Transcribe] Fetch error:', fetchError);
+      throw fetchError;
     }
-
-    // Calculate speech metrics
-    const duration = words.length > 0 
-      ? Math.max(...words.map(w => w.end))
-      : 0;
-    const metrics = calculateSpeechMetrics(text, words, duration);
-
-    return {
-      id: `transcription-${Date.now()}`,
-      recordingId: '', // Will be set by caller
-      text,
-      words,
-      wordTimestamps,
-      metrics,
-      createdAt: new Date(),
-    };
   } catch (error) {
     console.error('Error transcribing audio with ElevenLabs:', error);
-    // Return mock data on error for development
-    return generateMockTranscription(videoUrl);
+    // Re-throw the error instead of returning mock data
+    throw error;
   }
 }
 
@@ -187,7 +279,7 @@ function generateMockTranscription(videoUrl: string): Transcription {
   const mockWords = mockText.split(' ');
   let currentTime = 0;
 
-  mockWords.forEach((word, index) => {
+  mockWords.forEach((word) => {
     const start = currentTime;
     const duration = 0.3 + Math.random() * 0.5; // Random word duration
     const end = start + duration;
