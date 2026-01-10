@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, collections } from '@/lib/db/mongodb';
-import { transcribeAudio } from '@/lib/whisper/transcribe';
+import { transcribeAudio } from '@/lib/elevenlabs/transcribe';
 import { RecordingStatus } from '@/types/recording';
 import { ObjectId } from 'mongodb';
 
@@ -12,6 +12,14 @@ export async function POST(request: NextRequest) {
     if (!recordingId) {
       return NextResponse.json(
         { error: 'recordingId is required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate ObjectId format
+    if (!ObjectId.isValid(recordingId)) {
+      return NextResponse.json(
+        { error: 'Invalid recordingId format' },
         { status: 400 }
       );
     }
@@ -45,20 +53,23 @@ export async function POST(request: NextRequest) {
       { $set: { status: RecordingStatus.TRANSCRIBING } }
     );
 
-    // Transcribe audio
+    // Transcribe audio using ElevenLabs
     const videoUrl = recording.videoUrl;
     const transcription = await transcribeAudio(videoUrl);
     transcription.recordingId = recordingId;
 
     // Store transcription
+    // Generate a new ObjectId for the transcription document
+    const transcriptionId = new ObjectId();
     await db.collection(collections.transcriptions).insertOne({
-      _id: new ObjectId(transcription.id),
+      _id: transcriptionId,
       ...transcription,
+      id: transcriptionId.toString(),
     });
 
     return NextResponse.json(transcription);
   } catch (error) {
-    console.error('Whisper transcription error:', error);
+    console.error('ElevenLabs transcription error:', error);
     return NextResponse.json(
       { error: 'Failed to transcribe audio' },
       { status: 500 }

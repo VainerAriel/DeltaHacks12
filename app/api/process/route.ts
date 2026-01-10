@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 /**
  * Process a recording through the full pipeline:
  * 1. Extract biometrics (Presage)
- * 2. Transcribe audio (Whisper)
+ * 2. Transcribe audio (ElevenLabs)
  * 3. Analyze and generate feedback (Gemini)
  */
 export async function POST(request: NextRequest) {
@@ -42,16 +42,16 @@ export async function POST(request: NextRequest) {
 
     // Step 2: Transcribe audio
     try {
-      const whisperResponse = await fetch(`${request.nextUrl.origin}/api/whisper`, {
+      const transcriptionResponse = await fetch(`${request.nextUrl.origin}/api/whisper`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recordingId }),
       });
-      if (whisperResponse.ok) {
-        results.transcription = await whisperResponse.json();
+      if (transcriptionResponse.ok) {
+        results.transcription = await transcriptionResponse.json();
       }
     } catch (error) {
-      console.error('Whisper processing error:', error);
+      console.error('ElevenLabs transcription error:', error);
       results.error = results.error ? `${results.error}; Failed to transcribe` : 'Failed to transcribe';
     }
 

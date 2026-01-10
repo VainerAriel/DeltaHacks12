@@ -8,9 +8,12 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 
 export async function POST(request: NextRequest) {
+  console.log('[Upload] Upload route called');
   try {
+    console.log('[Upload] Parsing form data...');
     const formData = await request.formData();
     const videoFile = formData.get('video') as File;
+    console.log('[Upload] Video file received:', videoFile ? `Size: ${videoFile.size} bytes, Type: ${videoFile.type}` : 'null');
 
     if (!videoFile) {
       return NextResponse.json(
@@ -43,12 +46,26 @@ export async function POST(request: NextRequest) {
     let videoUrl: string;
     const recordingId = new ObjectId().toString();
 
+    // Determine file extension based on MIME type
+    const getFileExtension = (mimeType: string): string => {
+      const mimeToExt: Record<string, string> = {
+        'video/mp4': 'mp4',
+        'video/webm': 'webm',
+        'video/quicktime': 'mov',
+        'video/x-msvideo': 'avi',
+      };
+      return mimeToExt[mimeType] || 'webm'; // Default to webm
+    };
+
+    const fileExtension = getFileExtension(videoFile.type);
+    const fileName = `${recordingId}.${fileExtension}`;
+
     // Upload to S3 or local storage
     if (process.env.AWS_S3_BUCKET && process.env.AWS_ACCESS_KEY_ID) {
       // TODO: Implement S3 upload
       // const s3Url = await uploadToS3(videoFile, recordingId);
       // videoUrl = s3Url;
-      videoUrl = `/uploads/${recordingId}.webm`; // Placeholder
+      videoUrl = `/uploads/${fileName}`;
     } else {
       // Local storage fallback
       const uploadsDir = join(process.cwd(), 'public', 'uploads');
@@ -60,9 +77,25 @@ export async function POST(request: NextRequest) {
 
       const bytes = await videoFile.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      const filePath = join(uploadsDir, `${recordingId}.webm`);
+      const filePath = join(uploadsDir, fileName);
+      
+      // Ensure directory exists
+      await mkdir(uploadsDir, { recursive: true });
+      
+      // Write file
       await writeFile(filePath, buffer);
-      videoUrl = `/uploads/${recordingId}.webm`;
+      
+      // Verify file was written
+      const { existsSync } = await import('fs');
+      if (!existsSync(filePath)) {
+        throw new Error('Failed to save file to disk');
+      }
+      
+      console.log(`Video saved to: ${filePath}`);
+      console.log(`File size: ${buffer.length} bytes`);
+      
+      // Use /uploads/ path - will be served by app/uploads/[...path]/route.ts
+      videoUrl = `/uploads/${fileName}`;
     }
 
     // Get video duration (simplified - in production, use ffmpeg or similar)
@@ -98,15 +131,23 @@ export async function POST(request: NextRequest) {
       { $set: { status: RecordingStatus.PROCESSING } }
     );
 
+    console.log('[Upload] Successfully uploaded:', fileName);
+    console.log('[Upload] Video URL:', videoUrl);
+    console.log('[Upload] Recording ID:', recordingId);
+
     return NextResponse.json({
       recordingId,
       videoUrl,
       status: RecordingStatus.PROCESSING,
     });
   } catch (error) {
-    console.error('Upload error:', error);
+    console.error('[Upload] Upload error:', error);
+    console.error('[Upload] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
-      { error: 'Failed to upload video' },
+      { 
+        error: 'Failed to upload video',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

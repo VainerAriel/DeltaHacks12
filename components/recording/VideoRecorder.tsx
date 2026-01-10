@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
@@ -48,6 +48,10 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete }:
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        // Ensure video plays
+        videoRef.current.play().catch((err) => {
+          console.error('Error playing video:', err);
+        });
       }
 
       const mediaRecorder = new MediaRecorder(stream, {
@@ -60,7 +64,7 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete }:
         }
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const blob = new Blob(chunksRef.current, { type: 'video/webm' });
         setVideoBlob(blob);
         const url = URL.createObjectURL(blob);
@@ -70,9 +74,20 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete }:
         // Stop all tracks
         stream.getTracks().forEach((track) => track.stop());
         
+        // Clear the video srcObject to show the recorded video
+        if (videoRef.current) {
+          videoRef.current.srcObject = null;
+        }
+        
         if (onRecordingComplete) {
           onRecordingComplete(blob);
         }
+        
+        // Auto-upload the recording
+        console.log('[VideoRecorder] Recording stopped, auto-uploading...');
+        uploadVideo(blob).catch((err) => {
+          console.error('[VideoRecorder] Auto-upload failed:', err);
+        });
       };
 
       mediaRecorderRef.current = mediaRecorder;
@@ -146,13 +161,19 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete }:
     await uploadVideo(file);
   };
 
-  const uploadVideo = async (file: File | Blob) => {
+  const uploadVideo = useCallback(async (file: File | Blob) => {
     setIsUploading(true);
     setUploadProgress(0);
+    setError(null);
 
     try {
+      console.log('[VideoRecorder] Starting upload, file size:', file.size, 'bytes');
+      console.log('[VideoRecorder] File type:', file instanceof File ? file.type : 'Blob');
       const formData = new FormData();
-      formData.append('video', file, 'recording.webm');
+      
+      // Use the original filename if it's a File, otherwise use a default name
+      const fileName = file instanceof File ? file.name : 'recording.webm';
+      formData.append('video', file, fileName);
 
       const xhr = new XMLHttpRequest();
 
@@ -165,15 +186,31 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete }:
 
       const response = await new Promise<{ recordingId: string; videoUrl: string; status: string }>((resolve, reject) => {
         xhr.addEventListener('load', () => {
+          console.log('[VideoRecorder] Upload response status:', xhr.status);
           if (xhr.status === 200) {
-            resolve(JSON.parse(xhr.responseText));
+            try {
+              const result = JSON.parse(xhr.responseText);
+              console.log('[VideoRecorder] Upload successful:', result);
+              resolve(result);
+            } catch (e) {
+              console.error('[VideoRecorder] Failed to parse response:', e);
+              reject(new Error('Invalid response from server'));
+            }
           } else {
-            reject(new Error('Upload failed'));
+            const errorText = xhr.responseText || 'Upload failed';
+            console.error('[VideoRecorder] Upload failed with status:', xhr.status, errorText);
+            reject(new Error(`Upload failed: ${xhr.status} - ${errorText}`));
           }
         });
 
-        xhr.addEventListener('error', () => {
-          reject(new Error('Upload failed'));
+        xhr.addEventListener('error', (e) => {
+          console.error('[VideoRecorder] Upload network error:', e);
+          reject(new Error('Network error during upload'));
+        });
+
+        xhr.addEventListener('abort', () => {
+          console.error('[VideoRecorder] Upload aborted');
+          reject(new Error('Upload was aborted'));
         });
 
         xhr.open('POST', '/api/upload');
@@ -186,12 +223,13 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete }:
         onUploadComplete(response.recordingId);
       }
     } catch (err) {
-      setError('Failed to upload video. Please try again.');
-      console.error('Upload error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to upload video. Please try again.';
+      setError(errorMessage);
+      console.error('[VideoRecorder] Upload error:', err);
     } finally {
       setIsUploading(false);
     }
-  };
+  }, [onUploadComplete]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -227,30 +265,28 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete }:
             onDragOver={handleDragOver}
             onDrop={handleDrop}
           >
-            {videoUrl ? (
+            {videoUrl && !isRecording ? (
               <video
                 ref={videoRef}
                 src={videoUrl}
                 controls
                 className="w-full h-full object-contain"
               />
+            ) : isRecording ? (
+              <video
+                ref={videoRef}
+                autoPlay
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                {isRecording ? (
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    muted
-                    playsInline
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="text-center text-gray-400">
-                    <Video className="w-16 h-16 mx-auto mb-2" />
-                    <p>Camera preview will appear here</p>
-                    <p className="text-sm mt-2">or drag and drop a video file</p>
-                  </div>
-                )}
+                <div className="text-center text-gray-400">
+                  <Video className="w-16 h-16 mx-auto mb-2" />
+                  <p>Camera preview will appear here</p>
+                  <p className="text-sm mt-2">or drag and drop a video file</p>
+                </div>
               </div>
             )}
           </div>

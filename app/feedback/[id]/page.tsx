@@ -184,12 +184,33 @@ export default function FeedbackPage() {
               <CardDescription>Click on the chart timeline to jump to specific moments</CardDescription>
             </CardHeader>
             <CardContent>
-              <video
-                ref={videoRef}
-                src={recording.videoUrl}
-                controls
-                className="w-full rounded-lg"
-              />
+              {recording.videoUrl ? (
+                <video
+                  ref={videoRef}
+                  src={recording.videoUrl}
+                  controls
+                  className="w-full rounded-lg"
+                  preload="metadata"
+                  playsInline
+                  onError={(e) => {
+                    console.error('Video load error:', e);
+                    const video = e.currentTarget;
+                    if (video.error) {
+                      console.error('Video error code:', video.error.code);
+                      console.error('Video error message:', video.error.message);
+                    }
+                  }}
+                >
+                  <source src={recording.videoUrl} type="video/webm" />
+                  <source src={recording.videoUrl} type="video/mp4" />
+                  <source src={recording.videoUrl} type="video/quicktime" />
+                  Your browser does not support the video tag.
+                </video>
+              ) : (
+                <div className="w-full aspect-video bg-muted rounded-lg flex items-center justify-center">
+                  <p className="text-muted-foreground">Video not available</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 

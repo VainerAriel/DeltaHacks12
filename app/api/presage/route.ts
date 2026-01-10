@@ -16,6 +16,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate ObjectId format
+    if (!ObjectId.isValid(recordingId)) {
+      return NextResponse.json(
+        { error: 'Invalid recordingId format' },
+        { status: 400 }
+      );
+    }
+
     let db;
     try {
       db = await getDb();
@@ -51,9 +59,12 @@ export async function POST(request: NextRequest) {
     biometricData.recordingId = recordingId;
 
     // Store biometric data
+    // Generate a new ObjectId for the biometric data document
+    const biometricId = new ObjectId();
     await db.collection(collections.biometricData).insertOne({
-      _id: new ObjectId(biometricData.id),
+      _id: biometricId,
       ...biometricData,
+      id: biometricId.toString(),
     });
 
     return NextResponse.json(biometricData);

@@ -16,6 +16,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate ObjectId format
+    if (!ObjectId.isValid(recordingId)) {
+      return NextResponse.json(
+        { error: 'Invalid recordingId format' },
+        { status: 400 }
+      );
+    }
+
     let db;
     try {
       db = await getDb();
@@ -57,9 +65,12 @@ export async function POST(request: NextRequest) {
     feedbackReport.recordingId = recordingId;
 
     // Store feedback report
+    // Generate a new ObjectId for the feedback report document
+    const feedbackId = new ObjectId();
     await db.collection(collections.feedbackReports).insertOne({
-      _id: new ObjectId(feedbackReport.id),
+      _id: feedbackId,
       ...feedbackReport,
+      id: feedbackId.toString(),
     });
 
     // Update recording status to complete

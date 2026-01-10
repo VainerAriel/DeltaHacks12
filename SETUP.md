@@ -11,7 +11,7 @@
    - Copy `env.example` to `.env.local`
    - Fill in your API keys:
      - `MONGODB_URI`: MongoDB connection string
-     - `OPENAI_API_KEY`: For Whisper transcription
+     - `ELEVENLABS_API_KEY`: For ElevenLabs transcription
      - `GOOGLE_GEMINI_API_KEY`: For AI analysis
      - `NEXTAUTH_SECRET`: Generate with `openssl rand -base64 32`
 
@@ -39,7 +39,7 @@
 
 The application includes mock data generators, so you can test the full flow without API keys:
 - Presage biometric data: Mock data is generated automatically
-- Whisper transcription: Returns mock transcription if API key is missing
+- ElevenLabs transcription: Returns mock transcription if API key is missing
 - Gemini analysis: Returns mock feedback if API key is missing
 
 ## Presage SDK Integration

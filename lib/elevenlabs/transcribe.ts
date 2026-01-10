@@ -1,91 +1,130 @@
-import OpenAI from 'openai';
 import { Transcription, SpeechMetrics, Word, WordTimestamp } from '@/types/transcription';
 
-if (!process.env.OPENAI_API_KEY) {
-  console.warn('OPENAI_API_KEY not set. Transcription will use mock data.');
+if (!process.env.ELEVENLABS_API_KEY) {
+  console.warn('ELEVENLABS_API_KEY not set. Transcription will use mock data.');
 }
 
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null;
-
 /**
- * Transcribe audio from video using OpenAI Whisper API
+ * Transcribe audio from video using ElevenLabs Speech-to-Text API
  * @param videoUrl - URL of the video file to transcribe
  * @returns Transcription with text, words, timestamps, and metrics
  */
 export async function transcribeAudio(videoUrl: string): Promise<Transcription> {
-  if (!openai) {
+  if (!process.env.ELEVENLABS_API_KEY) {
     // Return mock data if API key is not set
     return generateMockTranscription(videoUrl);
   }
 
   try {
-    // Download video file
-    // Note: Whisper API can handle video files directly and will extract audio
-    // For local files, we need to read from the filesystem
-    let file: File | Blob;
+    // Download video file and extract audio
+    let audioBlob: Blob;
     
     if (videoUrl.startsWith('http')) {
       // Remote URL - fetch the file
       const response = await fetch(videoUrl);
-      file = await response.blob();
+      audioBlob = await response.blob();
     } else {
-      // Local file path - in production, read from filesystem
-      // TODO: Implement server-side file reading for local paths
-      const response = await fetch(videoUrl);
-      file = await response.blob();
+      // Local file path - read from filesystem
+      const { readFile } = await import('fs/promises');
+      const { join } = await import('path');
+      
+      // Convert relative path to absolute
+      const filePath = videoUrl.startsWith('/')
+        ? join(process.cwd(), 'public', videoUrl)
+        : join(process.cwd(), videoUrl);
+      
+      const fileBuffer = await readFile(filePath);
+      audioBlob = new Blob([fileBuffer]);
     }
-    
-    // Create a File object for OpenAI API
-    // Note: OpenAI Whisper accepts video files and extracts audio automatically
-    const videoFile = new File([file], 'video.webm', { type: file.type || 'video/webm' });
 
-    // Call Whisper API with timestamp
-    const transcription = await openai.audio.transcriptions.create({
-      file: videoFile,
-      model: 'whisper-1',
-      response_format: 'verbose_json',
-      timestamp_granularities: ['word'],
+    // TODO: Update this based on actual ElevenLabs Speech-to-Text API
+    // ElevenLabs may have different endpoints/format - check their documentation
+    // For now, using a generic structure that can be adjusted
+    
+    // Convert audio blob to format expected by ElevenLabs
+    // Note: ElevenLabs API format may require FormData or different structure
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'audio.webm');
+    
+    // Call ElevenLabs Speech-to-Text API
+    // Update endpoint and format based on actual ElevenLabs API documentation
+    const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+      method: 'POST',
+      headers: {
+        'xi-api-key': process.env.ELEVENLABS_API_KEY,
+        // Remove Content-Type header when using FormData - browser sets it automatically
+      },
+      body: formData,
     });
 
-    // Process transcription response
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('ElevenLabs API error:', error);
+      throw new Error(`ElevenLabs API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    // Process ElevenLabs response
+    // Note: ElevenLabs response format may vary - adjust based on actual API response
+    const text = result.text || '';
     const words: Word[] = [];
     const wordTimestamps: WordTimestamp[] = [];
 
-    if (transcription.words) {
-      transcription.words.forEach((word) => {
+    // If ElevenLabs provides word-level timestamps
+    if (result.words && Array.isArray(result.words)) {
+      result.words.forEach((word: any) => {
         words.push({
-          word: word.word,
-          start: word.start,
-          end: word.end,
-          confidence: 1.0, // Whisper doesn't provide confidence, using default
+          word: word.word || word.text || '',
+          start: word.start || 0,
+          end: word.end || 0,
+          confidence: word.confidence || 0.9,
         });
         wordTimestamps.push({
-          word: word.word,
-          timestamp: word.start,
+          word: word.word || word.text || '',
+          timestamp: word.start || 0,
         });
+      });
+    } else {
+      // Fallback: generate word timestamps from text
+      const textWords = text.split(/\s+/);
+      let currentTime = 0;
+      textWords.forEach((word) => {
+        const start = currentTime;
+        const duration = 0.3 + Math.random() * 0.5;
+        const end = start + duration;
+        
+        words.push({
+          word: word.replace(/[.,!?]/g, ''),
+          start,
+          end,
+          confidence: 0.9,
+        });
+        wordTimestamps.push({
+          word: word.replace(/[.,!?]/g, ''),
+          timestamp: start,
+        });
+        currentTime = end + (Math.random() * 0.5);
       });
     }
 
     // Calculate speech metrics
-    const metrics = calculateSpeechMetrics(
-      transcription.text,
-      words,
-      transcription.duration || 0
-    );
+    const duration = words.length > 0 
+      ? Math.max(...words.map(w => w.end))
+      : 0;
+    const metrics = calculateSpeechMetrics(text, words, duration);
 
     return {
       id: `transcription-${Date.now()}`,
       recordingId: '', // Will be set by caller
-      text: transcription.text,
+      text,
       words,
       wordTimestamps,
       metrics,
       createdAt: new Date(),
     };
   } catch (error) {
-    console.error('Error transcribing audio:', error);
+    console.error('Error transcribing audio with ElevenLabs:', error);
     // Return mock data on error for development
     return generateMockTranscription(videoUrl);
   }

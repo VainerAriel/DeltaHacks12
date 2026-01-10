@@ -14,7 +14,7 @@ const genAI = process.env.GOOGLE_GEMINI_API_KEY
 /**
  * Analyze presentation using Google Gemini API
  * @param biometricData - Biometric data from Presage
- * @param transcription - Transcription data from Whisper
+ * @param transcription - Transcription data from ElevenLabs
  * @returns Structured feedback report
  */
 export async function analyzePresentation(

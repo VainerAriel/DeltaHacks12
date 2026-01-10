@@ -31,7 +31,7 @@
 
 ### Mock Data
 - **Presage**: Generates realistic mock biometric data
-- **Whisper**: Returns sample transcription if API key not set
+- **ElevenLabs**: Returns sample transcription if API key not set
 - **Gemini**: Returns sample feedback if API key not set
 
 ### Database
@@ -57,7 +57,7 @@ components/
 lib/
   ├── db/               # MongoDB connection
   ├── presage/          # Biometric processing (mock)
-  ├── whisper/          # Transcription
+  ├── elevenlabs/       # Transcription
   └── gemini/           # AI analysis
 
 types/                   # TypeScript definitions
