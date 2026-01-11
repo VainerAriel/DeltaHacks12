@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import BiometricChart from '@/components/feedback/BiometricChart';
 import SpeechAnalysis from '@/components/feedback/SpeechAnalysis';
 import SectorAnalysis from '@/components/feedback/SectorAnalysis';
+import BusinessPresentationFeedback from '@/components/feedback/BusinessPresentationFeedback';
 import { FeedbackReport } from '@/types/feedback';
 import { BiometricData } from '@/types/biometrics';
 import { Transcription } from '@/types/transcription';
@@ -340,10 +341,53 @@ export default function FeedbackPage() {
               </p>
             </div>
           </div>
-          <Button onClick={() => router.push('/practice')} className="gap-2">
-            <RotateCcw className="w-4 h-4" />
-            Practice Again
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button 
+              onClick={() => {
+                if (!recording) return;
+                const params = new URLSearchParams();
+                if (recording.scenario) {
+                  params.set('scenario', recording.scenario);
+                }
+                if (recording.referenceDocumentId) {
+                  params.set('referenceDocumentId', recording.referenceDocumentId);
+                }
+                if (recording.referenceType) {
+                  params.set('referenceType', recording.referenceType);
+                }
+                if (recording.minDuration) {
+                  params.set('minDuration', recording.minDuration.toString());
+                }
+                if (recording.maxDuration) {
+                  params.set('maxDuration', recording.maxDuration.toString());
+                }
+                
+                // Navigate to appropriate practice page based on scenario
+                const practicePath = recording.scenario === 'business-presentation' 
+                  ? '/practice/business-presentation'
+                  : recording.scenario === 'job-interview'
+                  ? '/practice/job-interview'
+                  : recording.scenario === 'elevator-pitch'
+                  ? '/practice/elevator-pitch'
+                  : recording.scenario === 'casual-conversation'
+                  ? '/practice/casual-conversation'
+                  : '/practice';
+                
+                router.push(`${practicePath}${params.toString() ? `?${params.toString()}` : ''}`);
+              }} 
+              className="gap-2"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Practice Again
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => router.push('/dashboard')}
+              className="gap-2"
+            >
+              Return to Home
+            </Button>
+          </div>
         </div>
 
         {/* Question Navigation for Session Mode - Moved to top for better visibility */}
@@ -540,14 +584,23 @@ export default function FeedbackPage() {
         {/* Speech Analysis */}
         {transcription && <SpeechAnalysis transcription={transcription} />}
 
-        {/* Sector Analysis */}
+        {/* Sector Analysis - Use BusinessPresentationFeedback for business-presentation scenario */}
         {feedback && feedback.sectorScores && (
-          <SectorAnalysis 
-            sectorScores={feedback.sectorScores}
-            confidenceData={feedback.confidenceData}
-            engagementData={feedback.engagementData}
-            onTimeClick={handleTimeClick}
-          />
+          recording?.scenario === 'business-presentation' ? (
+            <BusinessPresentationFeedback
+              sectorScores={feedback.sectorScores}
+              confidenceData={feedback.confidenceData}
+              engagementData={feedback.engagementData}
+              onTimeClick={handleTimeClick}
+            />
+          ) : (
+            <SectorAnalysis 
+              sectorScores={feedback.sectorScores}
+              confidenceData={feedback.confidenceData}
+              engagementData={feedback.engagementData}
+              onTimeClick={handleTimeClick}
+            />
+          )
         )}
 
         {/* Insights and Recommendations */}

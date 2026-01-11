@@ -15,9 +15,10 @@ interface VideoRecorderProps {
   minDuration?: number; // Minimum recording duration in seconds
   onDurationCheck?: (duration: number) => { isValid: boolean; feedback?: string };
   referenceDocumentId?: string;
+  scenario?: string;
 }
 
-export default function VideoRecorder({ onRecordingComplete, onUploadComplete, sessionId, questionText, maxDuration, minDuration, onDurationCheck, referenceDocumentId }: VideoRecorderProps) {
+export default function VideoRecorder({ onRecordingComplete, onUploadComplete, sessionId, questionText, maxDuration, minDuration, onDurationCheck, referenceDocumentId, scenario }: VideoRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordedTime, setRecordedTime] = useState(0);
@@ -262,6 +263,9 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete, s
       }
       if (maxDuration !== undefined) {
         formData.append('maxDuration', maxDuration.toString());
+      }
+      if (scenario) {
+        formData.append('scenario', scenario);
       }
 
       const xhr = new XMLHttpRequest();

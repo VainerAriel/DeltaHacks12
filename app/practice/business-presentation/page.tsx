@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useRef, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import VideoRecorder from '@/components/recording/VideoRecorder';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ type Step = 'upload-prompt' | 'setup' | 'recording';
 
 export default function BusinessPresentationPracticePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>('upload-prompt');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
@@ -27,6 +28,28 @@ export default function BusinessPresentationPracticePage() {
   // Setup state
   const [minDuration, setMinDuration] = useState<string>('');
   const [maxDuration, setMaxDuration] = useState<string>('');
+
+  // Pre-populate from query params (for Practice Again)
+  useEffect(() => {
+    const refDocId = searchParams.get('referenceDocumentId');
+    const refType = searchParams.get('referenceType') as 'slides' | 'script' | null;
+    const minDur = searchParams.get('minDuration');
+    const maxDur = searchParams.get('maxDuration');
+
+    if (refDocId) {
+      setReferenceDocumentId(refDocId);
+      if (refType) {
+        setReferenceType(refType);
+      }
+      // User can choose to use existing or upload new - don't auto-skip to setup
+    }
+    if (minDur) {
+      setMinDuration(minDur);
+    }
+    if (maxDur) {
+      setMaxDuration(maxDur);
+    }
+  }, [searchParams]);
 
   const handleReferenceUpload = async () => {
     if (!referenceFile || !referenceType) return;
@@ -73,6 +96,20 @@ export default function BusinessPresentationPracticePage() {
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Validate file type on client side
+      const validTypes = ['application/pdf', 'text/plain'];
+      const validExtensions = ['.pdf', '.txt'];
+      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+      
+      const isValidType = validTypes.includes(file.type) || validExtensions.includes(fileExtension);
+      
+      if (!isValidType) {
+        alert('Invalid file type. Please upload a PDF or TXT file.');
+        // Reset the input
+        event.target.value = '';
+        return;
+      }
+      
       setReferenceFile(file);
     }
   };
@@ -152,11 +189,49 @@ export default function BusinessPresentationPracticePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {referenceDocumentId && referenceType && (
+                <div className="p-4 bg-muted rounded-md border border-primary/20">
+                  <p className="text-sm font-medium mb-2">Previous Reference File</p>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    You have a {referenceType === 'slides' ? 'slide deck' : 'script'} from your previous practice session.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Use existing reference document
+                        setStep('setup');
+                      }}
+                    >
+                      Use Previous File
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Clear and allow new upload
+                        setReferenceDocumentId(null);
+                        setReferenceFile(null);
+                      }}
+                    >
+                      Upload Different File
+                    </Button>
+                  </div>
+                </div>
+              )}
               <div className="space-y-3">
                 <div className="flex gap-4">
                   <Button
                     variant={referenceType === 'slides' ? 'default' : 'outline'}
-                    onClick={() => setReferenceType('slides')}
+                    onClick={() => {
+                      setReferenceType('slides');
+                      // Clear existing reference if changing type
+                      if (referenceDocumentId) {
+                        setReferenceDocumentId(null);
+                        setReferenceFile(null);
+                      }
+                    }}
                     className="flex-1"
                   >
                     <FileText className="w-4 h-4 mr-2" />
@@ -164,7 +239,14 @@ export default function BusinessPresentationPracticePage() {
                   </Button>
                   <Button
                     variant={referenceType === 'script' ? 'default' : 'outline'}
-                    onClick={() => setReferenceType('script')}
+                    onClick={() => {
+                      setReferenceType('script');
+                      // Clear existing reference if changing type
+                      if (referenceDocumentId) {
+                        setReferenceDocumentId(null);
+                        setReferenceFile(null);
+                      }
+                    }}
                     className="flex-1"
                   >
                     <FileText className="w-4 h-4 mr-2" />
@@ -178,7 +260,7 @@ export default function BusinessPresentationPracticePage() {
                       <input
                         ref={referenceFileInputRef}
                         type="file"
-                        accept=".pdf,.txt"
+                        accept="application/pdf,text/plain,.pdf,.txt"
                         onChange={handleFileSelect}
                         className="hidden"
                       />
@@ -374,6 +456,7 @@ export default function BusinessPresentationPracticePage() {
               minDuration={minDuration ? parseInt(minDuration, 10) : undefined}
               maxDuration={maxDuration ? parseInt(maxDuration, 10) : undefined}
               referenceDocumentId={referenceDocumentId || undefined}
+              scenario="business-presentation"
             />
             
             {/* Processing Status */}

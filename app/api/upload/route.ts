@@ -3,7 +3,7 @@ import { uploadVideoToS3 } from '@/lib/s3/upload';
 import { getDb, collections } from '@/lib/db/mongodb';
 import { ObjectId } from 'mongodb';
 import { getUserIdFromRequest } from '@/lib/auth';
-import { RecordingStatus } from '@/types/recording';
+import { RecordingStatus, Recording } from '@/types/recording';
 import { getVideoDuration } from '@/lib/video-duration';
 import { isS3Configured } from '@/lib/s3/client';
 import { join } from 'path';
@@ -28,11 +28,13 @@ export async function POST(req: NextRequest) {
     const referenceDocumentId = formData.get('referenceDocumentId') as string | null;
     const minDurationStr = formData.get('minDuration') as string | null;
     const maxDurationStr = formData.get('maxDuration') as string | null;
+    const scenario = formData.get('scenario') as string | null;
     console.log('[Upload] Video file received:', file ? `Size: ${file.size} bytes, Type: ${file.type}` : 'null');
     console.log('[Upload] Session ID:', sessionId || 'none');
     console.log('[Upload] Question text:', questionText || 'none');
     console.log('[Upload] Reference document ID:', referenceDocumentId || 'none');
     console.log('[Upload] Duration constraints:', minDurationStr || 'none', '-', maxDurationStr || 'none');
+    console.log('[Upload] Scenario:', scenario || 'none');
 
     if (!file) {
       return NextResponse.json(
@@ -164,6 +166,7 @@ export async function POST(req: NextRequest) {
       ...(referenceDocumentId && { referenceDocumentId }),
       ...(minDuration !== undefined && { minDuration }),
       ...(maxDuration !== undefined && { maxDuration }),
+      ...(scenario && { scenario }),
     };
 
     await db.collection(collections.recordings).insertOne({
