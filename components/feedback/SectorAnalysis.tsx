@@ -28,10 +28,10 @@ const sectorLabels: Record<keyof SectorAnalysisProps['sectorScores'], { title: s
   confidence: { title: 'Confidence', description: 'Presence and composure in delivery' },
 };
 
-const getScoreColor = (score: number): string => {
-  if (score >= 80) return 'text-green-600 dark:text-green-400';
-  if (score >= 60) return 'text-yellow-600 dark:text-yellow-400';
-  return 'text-red-600 dark:text-red-400';
+const getScoreBadgeBackground = (score: number): string => {
+  if (score > 60) return 'bg-green-600 dark:bg-green-500';
+  if (score < 50) return 'bg-red-600 dark:bg-red-500';
+  return 'bg-yellow-600 dark:bg-yellow-500';
 };
 
 const getScoreBadgeVariant = (score: number): 'default' | 'secondary' | 'destructive' => {
@@ -61,7 +61,10 @@ export default function SectorAnalysis({ sectorScores, onTimeClick }: SectorAnal
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">{label.title}</CardTitle>
-                    <Badge variant={getScoreBadgeVariant(score)}>
+                    <Badge 
+                      variant={getScoreBadgeVariant(score)}
+                      className={`${getScoreBadgeBackground(score)} text-white border-transparent`}
+                    >
                       {score}/100
                     </Badge>
                   </div>
