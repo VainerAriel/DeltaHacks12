@@ -694,66 +694,6 @@ export default function FeedbackPage() {
           )
         )}
 
-        {/* Insights and Recommendations */}
-        {feedback && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Biometric Insights */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Physical Confidence Indicators</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h3 className="font-semibold mb-2">Heart Rate Analysis</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {feedback.biometricInsights.heartRateAnalysis}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-2">Breathing Pattern</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {feedback.biometricInsights.breathingPattern}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-2">Facial Expressions</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {feedback.biometricInsights.facialExpressionNotes}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Speech Insights */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Speech Quality Analysis</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold">Clarity Score</h3>
-                    <Badge>{feedback.speechInsights.clarityScore}/100</Badge>
-                  </div>
-                  <Progress value={feedback.speechInsights.clarityScore} className="h-2" />
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-2">Pause Analysis</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {feedback.speechInsights.pauseAnalysis}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-2">Pronunciation Notes</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {feedback.speechInsights.pronunciationNotes}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
         {/* Recommendations */}
         {feedback && feedback.recommendations.length > 0 && (
           <Card>
