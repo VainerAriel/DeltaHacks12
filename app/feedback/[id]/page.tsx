@@ -30,6 +30,7 @@ export default function FeedbackPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processingError, setProcessingError] = useState<string | null>(null);
+  const [user, setUser] = useState<{ name: string } | null>(null);
   
   // Session mode state
   const [isSessionMode, setIsSessionMode] = useState(false);
@@ -225,6 +226,22 @@ export default function FeedbackPage() {
   }, [recordingId, loadRecordingData]);
 
   useEffect(() => {
+    // Fetch user data
+    const fetchUser = async () => {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const data = await response.json();
+          setUser({ name: data.name });
+        }
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
     // Reset retry count when recording ID changes
     retryCountRef.current = 0;
     
@@ -295,6 +312,57 @@ export default function FeedbackPage() {
     return 'destructive';
   };
 
+  const extractStrengths = (feedback: FeedbackReport): string[] => {
+    const strengths: string[] = [];
+    
+    // Check sector scores
+    if (feedback.sectorScores) {
+      if (feedback.sectorScores.confidence?.score >= 70) {
+        strengths.push('Strong confidence');
+      }
+      if (feedback.sectorScores.fluency?.score >= 70) {
+        strengths.push('Excellent fluency');
+      }
+      if (feedback.sectorScores.pronunciation?.score >= 70) {
+        strengths.push('Clear pronunciation');
+      }
+      if (feedback.sectorScores.engagement?.score >= 70) {
+        strengths.push('Great engagement');
+      }
+      if (feedback.sectorScores.tone?.score >= 70) {
+        strengths.push('Good tone');
+      }
+      if (feedback.sectorScores.vocabulary?.score >= 70) {
+        strengths.push('Strong vocabulary');
+      }
+    }
+    
+    // Check speech insights
+    if (feedback.speechInsights?.clarityScore >= 75) {
+      strengths.push('Excellent clarity');
+    }
+    
+    // Check biometric insights for positive language
+    if (feedback.biometricInsights) {
+      const heartRate = feedback.biometricInsights.heartRateAnalysis.toLowerCase();
+      const breathing = feedback.biometricInsights.breathingPattern.toLowerCase();
+      const facial = feedback.biometricInsights.facialExpressionNotes.toLowerCase();
+      
+      if (heartRate.includes('stable') || heartRate.includes('calm') || heartRate.includes('good')) {
+        strengths.push('Stable composure');
+      }
+      if (breathing.includes('steady') || breathing.includes('controlled') || breathing.includes('good')) {
+        strengths.push('Controlled breathing');
+      }
+      if (facial.includes('confident') || facial.includes('positive') || facial.includes('engaged')) {
+        strengths.push('Positive presence');
+      }
+    }
+    
+    // Limit to top 4 strengths
+    return strengths.slice(0, 4);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -337,7 +405,7 @@ export default function FeedbackPage() {
             <div>
               <h1 className="text-3xl font-bold">Feedback Report</h1>
               <p className="text-muted-foreground">
-                {new Date(recording.createdAt).toLocaleDateString()}
+                {user?.name ? `Great work, ${user.name}!` : new Date(recording.createdAt).toLocaleDateString()}
               </p>
             </div>
           </div>
@@ -501,6 +569,29 @@ export default function FeedbackPage() {
             </CardContent>
           </Card>
         ) : null}
+
+        {/* Strengths Card - What Went Well */}
+        {feedback && (() => {
+          const strengths = extractStrengths(feedback);
+          return strengths.length > 0 ? (
+            <Card className="border-green-200 dark:border-green-800">
+              <CardHeader>
+                <CardTitle>What Went Well</CardTitle>
+                <CardDescription>Your key strengths from this session</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {strengths.map((strength, index) => (
+                    <div key={index} className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-md">
+                      <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                      <span className="text-sm font-medium">{strength}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : null;
+        })()}
 
         {/* Question Display for Session Mode */}
         {isSessionMode && recording?.questionText && (
@@ -675,7 +766,7 @@ export default function FeedbackPage() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {(feedback.recommendations || []).filter(rec => rec != null).map((rec, index) => (
-                  <Card key={index} className="border-l-4 border-l-primary">
+                  <Card key={index} className="border-l-4 border-l-primary hover:-translate-y-1 transition-transform duration-200">
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between mb-2">
                         <h3 className="font-semibold">{rec?.title || 'Recommendation'}</h3>

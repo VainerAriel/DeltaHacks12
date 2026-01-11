@@ -200,6 +200,14 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Total Sessions</p>
                   <p className="text-2xl font-bold">{displayRecordings.length}</p>
+                  {displayRecordings.length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {displayRecordings.length <= 5 ? "Keep it up!" :
+                       displayRecordings.length <= 10 ? "You're on a roll!" :
+                       displayRecordings.length <= 20 ? "You're crushing it!" :
+                       "You're a practice champion!"}
+                    </p>
+                  )}
                 </div>
                 <Video className="w-8 h-8 text-muted-foreground" />
               </div>
@@ -220,6 +228,21 @@ export default function DashboardPage() {
                         )
                       : 'N/A'}
                   </p>
+                  {displayRecordings.filter((r) => r.feedback).length > 0 && (() => {
+                    const avgScore = Math.round(
+                      displayRecordings
+                        .filter((r) => r.feedback)
+                        .reduce((sum, r) => sum + (r.feedback?.overallScore || 0), 0) /
+                      displayRecordings.filter((r) => r.feedback).length
+                    );
+                    return (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {avgScore >= 80 ? "Outstanding work!" :
+                         avgScore >= 60 ? "Great progress!" :
+                         "Every session helps you improve!"}
+                      </p>
+                    );
+                  })()}
                 </div>
                 <TrendingUp className="w-8 h-8 text-muted-foreground" />
               </div>
@@ -233,6 +256,9 @@ export default function DashboardPage() {
                   <p className="text-2xl font-bold">
                     {displayRecordings.filter((r) => r.status === RecordingStatus.COMPLETE).length}
                   </p>
+                  {displayRecordings.filter((r) => r.status === RecordingStatus.COMPLETE).length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">Well done!</p>
+                  )}
                 </div>
                 <Badge variant="default">Complete</Badge>
               </div>
@@ -279,9 +305,9 @@ export default function DashboardPage() {
             {displayRecordings.length === 0 ? (
               <div className="text-center py-12">
                 <Video className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No recordings yet</h3>
+                <h3 className="text-lg font-semibold mb-2">Ready to start your journey? Your first practice session awaits!</h3>
                 <p className="text-muted-foreground mb-4">
-                  Start your first practice session to see your recordings here
+                  Click the button below to begin practicing and track your progress
                 </p>
                 <Link href="/practice">
                   <Button>Start Practicing</Button>
@@ -296,7 +322,7 @@ export default function DashboardPage() {
                   return (
                     <Card
                       key={recording.id}
-                      className="cursor-pointer hover:border-primary transition-colors"
+                      className="cursor-pointer hover:border-primary transition-all duration-200 hover:-translate-y-1"
                       onClick={() => router.push(`/feedback/${recording.id}`)}
                     >
                       <CardContent className="p-4">
@@ -339,7 +365,7 @@ export default function DashboardPage() {
                               </div>
                             </div>
                           </div>
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" className="hover:translate-x-1 transition-transform duration-200">
                             →
                           </Button>
                         </div>
