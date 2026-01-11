@@ -143,6 +143,15 @@ export async function extractAudioFromBuffer(
   videoExtension: string,
   videoUrl?: string
 ): Promise<Buffer> {
+  // On Vercel, VM service is required (FFmpeg binaries don't work on Vercel)
+  if (process.env.VERCEL) {
+    if (!isVmServiceConfigured() || !videoUrl) {
+      throw new Error('VM service is required on Vercel. Please configure FFMPEG_VM_URL and FFMPEG_API_KEY, and ensure videoUrl is provided.');
+    }
+    console.log('[AudioExtract] Using VM service for audio extraction (Vercel)');
+    return await vmExtractAudio(videoUrl);
+  }
+
   // Try VM service first if configured and videoUrl is provided
   if (isVmServiceConfigured() && videoUrl) {
     try {
@@ -150,11 +159,11 @@ export async function extractAudioFromBuffer(
       return await vmExtractAudio(videoUrl);
     } catch (error) {
       console.warn('[AudioExtract] VM service failed, falling back to local FFmpeg:', error);
-      // Fall through to local processing
+      // Fall through to local processing (dev only)
     }
   }
 
-  // Fall back to local FFmpeg processing
+  // Fall back to local FFmpeg processing (dev/local only, not on Vercel)
   // Ensure ffmpeg path is set before using it
   getFfmpegPath();
   

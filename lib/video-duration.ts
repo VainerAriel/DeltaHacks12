@@ -85,6 +85,15 @@ export async function getVideoDuration(
   mimeType: string,
   videoUrl?: string
 ): Promise<number> {
+  // On Vercel, VM service is required (FFmpeg binaries don't work on Vercel)
+  if (process.env.VERCEL) {
+    if (!isVmServiceConfigured() || !videoUrl) {
+      throw new Error('VM service is required on Vercel. Please configure FFMPEG_VM_URL and FFMPEG_API_KEY, and ensure videoUrl is provided.');
+    }
+    console.log('[VideoDuration] Using VM service for duration extraction (Vercel)');
+    return await vmGetVideoDuration(videoUrl);
+  }
+
   // Try VM service first if configured and videoUrl is provided
   if (isVmServiceConfigured() && videoUrl) {
     try {
@@ -92,11 +101,11 @@ export async function getVideoDuration(
       return await vmGetVideoDuration(videoUrl);
     } catch (error) {
       console.warn('[VideoDuration] VM service failed, falling back to local ffprobe:', error);
-      // Fall through to local processing
+      // Fall through to local processing (dev only)
     }
   }
 
-  // Fall back to local ffprobe processing
+  // Fall back to local ffprobe processing (dev/local only, not on Vercel)
   // Convert File to Buffer if needed
   let buffer: Buffer;
   if (file instanceof File) {
