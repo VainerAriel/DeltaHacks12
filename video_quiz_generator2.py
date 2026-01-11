@@ -41,12 +41,12 @@ except ImportError:
 # Configuration
 # Check for API key in environment variables (common names) or use hardcoded key
 # Now supports .env files via python-dotenv
-GOOGLE_API_KEY = os.getenv("GOOGLE_GEMINI_API_KEY") or os.getenv("GOOGLE_GEMINI_API_KEY") or os.getenv("GOOGLE_GEMINI_API_KEY") or ""
+GOOGLE_API_KEY = os.getenv("GOOGLE_GEMINI_API_KEY") or os.getenv("GOOGLE_GEMINI_API_KEY") or os.getenv("GOOGLE_GEMINI_API_KEY") or "AIzaSyDMA38E16YLcQt8hmgnTKJq0sgBkwYfMJE"
 
 # If not set via environment variable, uncomment and set below:
 # GOOGLE_API_KEY = "your-api-key-here"
 # Update this path to your video file
-VIDEO_PATH = r"C:\Users\benli\OneDrive - McMaster University\Pictures\Camera Roll\WIN_20260110_22_20_10_Pro.mp4"
+VIDEO_PATH = r"C:\Users\Lenovo\.1CODE\1_Hackathons\DeltaHacks2026\DeltaHacks12\WIN_20260110_23_17_11_Pro.mp4"
 MODEL_NAME = "gemini-2.5-flash"
 
 # Gemini prompt for video analysis
@@ -54,7 +54,7 @@ GEMINI_PROMPT = """Please analyze this video presentation and provide detailed f
 
 Give comprehensive feedback on the quality of the presentation, including:
 
-FEEDBACK AREAS:
+FEEDBACK AREAS (50 words max for each feedback area):
 - Tone: Is the speaker's tone appropriate? Is it too monotone, too energetic, or well-balanced?
 - Fluency: How smooth is the speech? Are there frequent pauses, stutters, or hesitations?
 - Vocabulary: Is the word choice appropriate? Is the language clear and understandable?
@@ -64,22 +64,8 @@ FEEDBACK AREAS:
 
 Please provide this feedback as if I am the person giving the speech and you are directly talking to me as an honest coach, and give specific examples of what is good and what needs work. Be direct, specific, and actionable.  Give scores that reflect honest assessment.
 
-Additionally, provide two data sets in JSON format (one data point for EVERY SECOND of the video):
-
-{
-  "confidenceData": [
-    {"timestamp": 0, "confidence": <0-100>},
-    {"timestamp": 1, "confidence": <0-100>},
-    {"timestamp": 2, "confidence": <0-100>},
-    ...
-  ],
-  "engagementData": [
-    {"timestamp": 0, "engagement": <0-100>},
-    {"timestamp": 1, "engagement": <0-100>},
-    {"timestamp": 2, "engagement": <0-100>},
-    ...
-  ]
-}
+Provide two data sets in JSON format (one data point for EVERY SECOND of the video) for confidence and engagement:
+IMPORTANT: Create a data point for EVERY SECOND of the video (timestamp: 0, 1, 2, 3, ... up to the video duration). Both arrays should have the same number of data points corresponding to each second of the video. Be strict and honest with your scoring - this ESL learner needs realistic assessment.
 
 CONFIDENCE SCORES (0-100) should be based on:
 - Body language and posture (open vs closed, upright vs slouched)
@@ -101,7 +87,34 @@ SCORING GUIDELINES (BE STRICT AND HONEST):
 - Mediocre delivery should score 40-55, not higher
 - Remember: You are an strict coach but also encouraging - grade strictly to help the speaker improve
 
-IMPORTANT: Create a data point for EVERY SECOND of the video (timestamp: 0, 1, 2, 3, ... up to the video duration). Both arrays should have the same number of data points corresponding to each second of the video. Be strict and honest with your scoring - this ESL learner needs realistic assessment.
+
+Provide data in only the following JSON format:
+{
+  "confidenceData": [
+    {"timestamp": 0, "confidence": <0-100>},
+    {"timestamp": 1, "confidence": <0-100>},
+    {"timestamp": 2, "confidence": <0-100>},
+    ...
+  ],
+  "engagementData": [
+    {"timestamp": 0, "engagement": <0-100>},
+    {"timestamp": 1, "engagement": <0-100>},
+    {"timestamp": 2, "engagement": <0-100>},
+    ...
+  ],
+  "ToneScore": <0-100>,
+  "ToneFeedback": "...",
+  "FluencyScore": <0-100>,
+  "FluencyFeedback": "...",
+  "VocabularyScore": <0-100>,
+  "VocabularyFeedback": "...",
+  "PronunciationScore": <0-100>,
+  "PronunciationFeedback": "...",
+  "EngagementScore": <0-100>,
+  "EngagementFeedback": "...",
+  "ConfidenceScore": <0-100>,
+  "ConfidenceFeedback": "..."
+}
 
 Only include the JSON object in your response, formatted exactly as shown above."""
 
