@@ -149,7 +149,7 @@ export default function ElevatorPitchPracticePage() {
                 <div className="p-4 bg-muted rounded-md">
                   <p className="text-sm font-medium mb-2">Suggested Prompt:</p>
                   <p className="text-sm italic">
-                    "Give a 60-second pitch about yourself, your background, and what makes you unique."
+                    &quot;Give a 60-second pitch about yourself, your background, and what makes you unique.&quot;
                   </p>
                 </div>
                 <div className="p-4 bg-muted rounded-md">

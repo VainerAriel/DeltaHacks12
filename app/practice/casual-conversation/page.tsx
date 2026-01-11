@@ -149,7 +149,7 @@ export default function CasualConversationPracticePage() {
                 <div className="p-4 bg-muted rounded-md">
                   <p className="text-sm font-medium mb-2">Suggested Prompt:</p>
                   <p className="text-sm italic">
-                    "Have a conversation about your hobbies and interests. Keep it natural and engaging."
+                    &quot;Have a conversation about your hobbies and interests. Keep it natural and engaging.&quot;
                   </p>
                 </div>
                 <div className="p-4 bg-muted rounded-md">

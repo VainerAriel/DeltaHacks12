@@ -63,7 +63,7 @@ export default function JobInterviewSetupPage() {
           <CardHeader>
             <CardTitle>Number of Questions</CardTitle>
             <CardDescription>
-              Select how many behavioral interview questions you'd like to practice
+              Select how many behavioral interview questions you&apos;d like to practice
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -121,7 +121,7 @@ export default function JobInterviewSetupPage() {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-start gap-2">
                 <span className="text-primary mt-1">•</span>
-                <span>You'll answer {numQuestions} behavioral interview question{numQuestions !== 1 ? 's' : ''}</span>
+                <span>You&apos;ll answer {numQuestions} behavioral interview question{numQuestions !== 1 ? 's' : ''}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-primary mt-1">•</span>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,12 +18,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
 
-  useEffect(() => {
-    fetchUser();
-    fetchRecordings();
-  }, []);
-
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       const response = await fetch('/api/auth/me');
       if (response.ok) {
@@ -36,9 +31,9 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error fetching user:', error);
     }
-  };
+  }, [router]);
 
-  const fetchRecordings = async () => {
+  const fetchRecordings = useCallback(async () => {
     try {
       const response = await fetch('/api/recordings');
       if (response.ok) {
@@ -53,7 +48,12 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    fetchUser();
+    fetchRecordings();
+  }, [fetchUser, fetchRecordings]);
 
   const handleLogout = async () => {
     try {

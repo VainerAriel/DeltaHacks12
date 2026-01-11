@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,11 +35,7 @@ export default function FeedbackPage() {
   const [sessionRecordings, setSessionRecordings] = useState<(Recording & { feedback?: FeedbackReport })[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
-  useEffect(() => {
-    fetchFeedbackData();
-  }, [recordingId]);
-
-  const fetchFeedbackData = async () => {
+  const fetchFeedbackData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -110,7 +106,11 @@ export default function FeedbackPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [recordingId]);
+
+  useEffect(() => {
+    fetchFeedbackData();
+  }, [fetchFeedbackData]);
 
   const loadRecordingData = async (recId: string, scenarioOverride?: string, sessionDataOverride?: (Recording & { feedback?: FeedbackReport })[]) => {
     // Fetch biometric data

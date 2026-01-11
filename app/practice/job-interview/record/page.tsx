@@ -156,7 +156,7 @@ export default function JobInterviewRecordPage() {
               <CardHeader>
                 <CardTitle>Record Your Answer</CardTitle>
                 <CardDescription>
-                  Click "Start Record" when you're ready to answer
+                  Click &quot;Start Record&quot; when you&apos;re ready to answer
                 </CardDescription>
               </CardHeader>
               <CardContent>
