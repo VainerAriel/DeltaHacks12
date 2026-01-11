@@ -178,7 +178,7 @@ export async function transcribeAudio(videoUrl: string): Promise<Transcription> 
         // Fallback: generate word timestamps from text
         const textWords = text.split(/\s+/);
         let currentTime = 0;
-        textWords.forEach((word) => {
+        textWords.forEach((word: string) => {
           const start = currentTime;
           const duration = 0.3 + Math.random() * 0.5;
           const end = start + duration;
