@@ -15,7 +15,6 @@ import { Transcription } from '@/types/transcription';
 import { Recording } from '@/types/recording';
 import { Loader2, ArrowLeft, RotateCcw, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 
-
 export default function FeedbackPage() {
   const params = useParams();
   const router = useRouter();
@@ -29,6 +28,7 @@ export default function FeedbackPage() {
   const [feedback, setFeedback] = useState<FeedbackReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [processingError, setProcessingError] = useState<string | null>(null);
   
   // Session mode state
   const [isSessionMode, setIsSessionMode] = useState(false);
@@ -86,8 +86,14 @@ export default function FeedbackPage() {
             setCurrentQuestionIndex(currentIndex);
           }
           
+          // Check if feedback exists in session data and set it immediately
+          const currentSessionRecording = sessionData.find((r: Recording & { feedback?: FeedbackReport }) => r.id === recordingId);
+          if (currentSessionRecording?.feedback) {
+            setFeedback(currentSessionRecording.feedback);
+          }
+          
           // Load data for the current recording
-          await loadRecordingData(recordingId, recordingData.questionText ? 'job-interview' : undefined);
+          await loadRecordingData(recordingId, recordingData.questionText ? 'job-interview' : undefined, sessionData);
         } else {
           // Fallback to single recording mode
           setIsSessionMode(false);
@@ -106,7 +112,7 @@ export default function FeedbackPage() {
     }
   };
 
-  const loadRecordingData = async (recId: string, scenarioOverride?: string) => {
+  const loadRecordingData = async (recId: string, scenarioOverride?: string, sessionDataOverride?: (Recording & { feedback?: FeedbackReport })[]) => {
     // Fetch biometric data
     const biometricRes = await fetch(`/api/biometrics/${recId}`);
     if (biometricRes.ok) {
@@ -121,23 +127,67 @@ export default function FeedbackPage() {
       setTranscription(transcriptionData);
     }
 
-    // Fetch feedback
+    // Check if feedback exists in session recordings first (for session mode)
+    // Use sessionDataOverride if provided (for initial load), otherwise use state
+    const recordingsToCheck = sessionDataOverride || sessionRecordings;
+    if (isSessionMode && recordingsToCheck.length > 0) {
+      const sessionRecording = recordingsToCheck.find(r => r.id === recId);
+      if (sessionRecording?.feedback) {
+        setFeedback(sessionRecording.feedback);
+        return; // Feedback found in session recordings, no need to fetch
+      }
+    }
+
+    // Fetch feedback from API
     const feedbackRes = await fetch(`/api/feedback/${recId}`);
     if (feedbackRes.ok) {
       const feedbackData = await feedbackRes.json();
       setFeedback(feedbackData);
+      setProcessingError(null); // Clear any previous processing errors
     } else {
       // If feedback doesn't exist, trigger processing
       // Use scenarioOverride if provided, otherwise check if recording has questionText
-      const rec = sessionRecordings.find(r => r.id === recId) || recording;
+      const rec = recordingsToCheck.find(r => r.id === recId) || recording;
       const scenario = scenarioOverride || (rec?.questionText ? 'job-interview' : undefined);
-      await fetch('/api/process', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recordingId: recId, scenario }),
-      });
-      // Retry fetching feedback after a delay
-      setTimeout(() => loadRecordingData(recId, scenario), 3000);
+      
+      try {
+        const processRes = await fetch('/api/process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recordingId: recId, scenario }),
+        });
+        
+        const processResult = await processRes.json();
+        
+        // Check if feedback was successfully generated
+        if (processResult.feedback) {
+          // Feedback was generated, set it and clear any errors
+          setFeedback(processResult.feedback);
+          setProcessingError(null);
+          return;
+        }
+        
+        // Check if there was an error, especially API key issues
+        if (processResult.error) {
+          if (processResult.error.includes('Failed to analyze') || processResult.error.includes('API key')) {
+            setProcessingError('Unable to generate feedback: API key error. Please check your Gemini API key configuration.');
+            return; // Don't retry if it's an API key issue
+          } else {
+            setProcessingError('Failed to generate feedback. Please try again later.');
+            return;
+          }
+        }
+        
+        // If biometrics and transcription succeeded but feedback wasn't generated yet, retry after delay
+        if (processResult.biometrics && processResult.transcription && !processResult.feedback) {
+          setTimeout(() => loadRecordingData(recId, scenario, sessionDataOverride), 3000);
+        } else if (!processResult.biometrics || !processResult.transcription) {
+          setProcessingError('Failed to process recording data. Please try again later.');
+        }
+      } catch (err) {
+        console.error('Error processing recording:', err);
+        setProcessingError('Failed to process recording. Please try again later.');
+      }
     }
   };
 
@@ -168,7 +218,12 @@ export default function FeedbackPage() {
       }
     }
     
-    // Load data for the new recording
+    // If feedback is already in the session recording, set it immediately
+    if (targetRecording.feedback) {
+      setFeedback(targetRecording.feedback);
+    }
+    
+    // Load data for the new recording (biometrics, transcription, and feedback if not already set)
     await loadRecordingData(targetRecording.id);
   };
 
@@ -362,6 +417,26 @@ export default function FeedbackPage() {
             <CardContent>
               <div className="p-4 bg-muted rounded-lg">
                 <p className="text-lg">{recording.questionText}</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Processing Error Alert */}
+        {processingError && !feedback && (
+          <Card className="border-destructive">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-destructive mb-1">Feedback Generation Failed</h3>
+                  <p className="text-sm text-muted-foreground">{processingError}</p>
+                  {processingError.includes('API key') && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Please update your GEMINI_API_KEY in your environment variables and restart the server.
+                    </p>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
