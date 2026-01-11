@@ -410,7 +410,7 @@ export default function FeedbackPage() {
                 
                 // Navigate to appropriate practice page based on scenario
                 const practicePath = recording.scenario === 'business-presentation' 
-                  ? '/practice/business-presentation'
+                  ? '/practice/presentation'
                   : recording.scenario === 'job-interview'
                   ? '/practice/job-interview'
                   : recording.scenario === 'elevator-pitch'
