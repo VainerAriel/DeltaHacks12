@@ -145,6 +145,32 @@ export async function transcribeAudio(videoUrl: string): Promise<Transcription> 
 
         console.log('[Transcribe] ElevenLabs API response status:', response.status, response.statusText);
 
+        // Handle client errors (4xx) - don't retry these
+        if (response.status >= 400 && response.status < 500) {
+          const errorText = await response.text();
+          let errorMessage = `ElevenLabs API error: ${response.status} ${response.statusText}`;
+          
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMessage += ` - ${JSON.stringify(errorJson)}`;
+          } catch {
+            errorMessage += ` - ${errorText}`;
+          }
+          
+          console.error('[Transcribe] ElevenLabs API client error:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorText
+          });
+          
+          // For 405 (Method Not Allowed), provide helpful error message
+          if (response.status === 405) {
+            throw new Error(`${errorMessage}. This may indicate an incorrect API endpoint or method. Please check your ElevenLabs API configuration.`);
+          }
+          
+          throw new Error(errorMessage);
+        }
+
         // Retry on rate limits (429) and server errors (5xx)
         if (response.status === 429 || (response.status >= 500 && response.status < 600)) {
           const errorText = await response.text();
