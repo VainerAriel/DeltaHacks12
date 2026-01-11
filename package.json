@@ -9,7 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.490.0",
+    "@aws-sdk/client-s3": "^3.966.0",
+    "@aws-sdk/s3-request-presigner": "^3.966.0",
     "@google/generative-ai": "^0.21.0",
     "@radix-ui/react-progress": "^1.0.3",
     "@types/bcrypt": "^6.0.0",

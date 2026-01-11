@@ -3,6 +3,7 @@ import { getDb, collections } from '@/lib/db/mongodb';
 import { processPresageData } from '@/lib/presage/processor';
 import { RecordingStatus } from '@/types/recording';
 import { ObjectId } from 'mongodb';
+import { getPresignedUrl } from '@/lib/s3/presigned-url';
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,7 +56,8 @@ export async function POST(request: NextRequest) {
 
     try {
       // Process with Presage
-      const videoUrl = recording.videoUrl;
+      // Generate presigned URL if it's an S3 URL
+      const videoUrl = await getPresignedUrl(recording.videoUrl);
       const biometricData = await processPresageData(videoUrl);
       biometricData.recordingId = recordingId;
 
