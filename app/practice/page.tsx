@@ -41,7 +41,7 @@ export default function PracticeSelectionPage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
+    <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="mb-10">
