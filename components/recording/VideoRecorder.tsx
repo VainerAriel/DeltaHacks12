@@ -327,7 +327,7 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete, s
     if (file && file.type.startsWith('video/')) {
       const fakeEvent = {
         target: { files: [file] },
-      } as React.ChangeEvent<HTMLInputElement>;
+      } as unknown as React.ChangeEvent<HTMLInputElement>;
       handleFileUpload(fakeEvent);
     }
   };
