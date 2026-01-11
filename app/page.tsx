@@ -5,10 +5,12 @@ export default function Home() {
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center space-y-6 p-8">
-        <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
-          ESL Speech Coaching Platform
-        </h1>
-        <p className="text-lg text-gray-600 dark:text-gray-300">
+        <img 
+          src="/Fluency Lab.png" 
+          alt="Fluency Lab" 
+          className="mx-auto max-w-sm w-full h-auto mix-blend-multiply"
+        />
+        <p className="text-2xl text-gray-600 dark:text-gray-300 -mt-30">
           Improve your English speaking skills with AI-powered feedback
         </p>
         <div className="flex gap-4 justify-center">

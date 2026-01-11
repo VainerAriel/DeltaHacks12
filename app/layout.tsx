@@ -5,7 +5,7 @@ import "./globals.css";
 const manrope = Manrope({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "ESL Speech Coaching Platform",
+  title: "Fluency Lab",
   description: "AI-powered speech coaching for ESL learners",
 };
 
