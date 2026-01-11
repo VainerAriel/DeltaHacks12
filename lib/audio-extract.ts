@@ -9,7 +9,14 @@ import { isVmServiceConfigured, extractAudioFromVideo as vmExtractAudio } from '
 let ffmpegPath: string | null = null;
 
 function getFfmpegPath(): string {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/54f071bc-f187-40b1-aece-e023fc21cb07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/audio-extract.ts:10',message:'getFfmpegPath entry',data:{cachedPath:ffmpegPath,processCwd:process.cwd()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
+  
   if (ffmpegPath) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/54f071bc-f187-40b1-aece-e023fc21cb07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/audio-extract.ts:15',message:'getFfmpegPath cached return',data:{path:ffmpegPath},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     return ffmpegPath;
   }
 
@@ -64,18 +71,34 @@ function getFfmpegPath(): string {
       throw new Error('FFmpeg path not found in ffmpeg-static module');
     }
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/54f071bc-f187-40b1-aece-e023fc21cb07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/audio-extract.ts:52',message:'Before existsSync check',data:{path:path},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    
     // Verify the path exists
     const pathExists = existsSync(path);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/54f071bc-f187-40b1-aece-e023fc21cb07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/audio-extract.ts:56',message:'After existsSync check',data:{path:path,exists:pathExists},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     
     if (!pathExists) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/54f071bc-f187-40b1-aece-e023fc21cb07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/audio-extract.ts:59',message:'Path does not exist - throwing error',data:{path:path},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       throw new Error(`FFmpeg binary not found at: ${path}`);
     }
 
     ffmpegPath = path;
     ffmpeg.setFfmpegPath(path);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/54f071bc-f187-40b1-aece-e023fc21cb07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/audio-extract.ts:66',message:'getFfmpegPath success',data:{path:path},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     console.log('[AudioExtract] FFmpeg path resolved:', path);
     return path;
   } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/54f071bc-f187-40b1-aece-e023fc21cb07',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'lib/audio-extract.ts:70',message:'getFfmpegPath error caught',data:{errorMessage:error instanceof Error?error.message:String(error),errorStack:error instanceof Error?error.stack?.substring(0,500):undefined},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     throw new Error(`Failed to initialize FFmpeg: ${errorMessage}. Please ensure ffmpeg-static is installed: npm install ffmpeg-static`);
   }

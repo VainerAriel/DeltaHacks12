@@ -22,17 +22,10 @@ export async function GET(
     }
 
     const { _id, ...rest } = transcription;
-    return NextResponse.json(
-      {
-        id: _id.toString(),
-        ...rest,
-      },
-      {
-        headers: {
-          'Cache-Control': 'private, max-age=300', // Cache for 5 minutes (transcription doesn't change)
-        },
-      }
-    );
+    return NextResponse.json({
+      id: _id.toString(),
+      ...rest,
+    });
   } catch (error) {
     console.error('Error fetching transcription:', error);
     return NextResponse.json(

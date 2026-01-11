@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import jwt from 'jsonwebtoken';
 
 interface JWTPayload {
@@ -31,26 +31,6 @@ export function getUserIdFromRequest(request: NextRequest): string | null {
     console.error('Error verifying JWT token:', error);
     return null;
   }
-}
-
-/**
- * Middleware helper to check authentication and return user ID or error response
- * @param request - The Next.js request object
- * @returns Object with userId if authenticated, or null with error response
- */
-export function requireAuth(request: NextRequest): { userId: string } | { error: NextResponse } {
-  const userId = getUserIdFromRequest(request);
-  
-  if (!userId) {
-    return {
-      error: NextResponse.json(
-        { error: 'Unauthorized. Please log in.' },
-        { status: 401 }
-      )
-    };
-  }
-  
-  return { userId };
 }
 
 /**

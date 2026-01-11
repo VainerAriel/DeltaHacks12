@@ -108,15 +108,11 @@ Include this comparison in your analysis.`;
     const tooLong = maxDuration !== undefined && actualDuration > maxDuration;
     
     if (tooShort || tooLong) {
-      const actualMinutes = Math.round(actualDuration / 60 * 10) / 10; // Round to 1 decimal
-      const minMinutes = minDuration !== undefined ? Math.round(minDuration / 60 * 10) / 10 : undefined;
-      const maxMinutes = maxDuration !== undefined ? Math.round(maxDuration / 60 * 10) / 10 : undefined;
-      
       durationSection = `
 
 Duration Analysis:
-- Actual Duration: ${actualMinutes} minutes (${actualDuration} seconds)
-- Target Duration: ${minDuration !== undefined ? `Minimum: ${minMinutes} minutes (${minDuration}s)` : ''}${minDuration !== undefined && maxDuration !== undefined ? ', ' : ''}${maxDuration !== undefined ? `Maximum: ${maxMinutes} minutes (${maxDuration}s)` : ''}
+- Actual Duration: ${actualDuration} seconds
+- Target Duration: ${minDuration !== undefined ? `Minimum: ${minDuration}s` : ''}${minDuration !== undefined && maxDuration !== undefined ? ', ' : ''}${maxDuration !== undefined ? `Maximum: ${maxDuration}s` : ''}
 - Status: ${tooShort ? 'TOO SHORT' : tooLong ? 'TOO LONG' : 'WITHIN RANGE'}
 
 Provide specific feedback on how to adjust the presentation length:
@@ -336,15 +332,9 @@ export async function analyzePresentation(
             if (tooShort || tooLong) {
               let feedbackText = '';
               if (tooShort) {
-                const diffSeconds = minDuration - actualDuration;
-                const diffMinutes = Math.round(diffSeconds / 60 * 10) / 10;
-                const minMinutes = Math.round(minDuration / 60 * 10) / 10;
-                feedbackText = `Your presentation is ${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} too short. Consider expanding on key points, adding examples, or providing more detail to meet the minimum duration of ${minMinutes} minute${minMinutes !== 1 ? 's' : ''}.`;
+                feedbackText = `Your presentation is ${minDuration - actualDuration} seconds too short. Consider expanding on key points, adding examples, or providing more detail to meet the minimum duration of ${minDuration} seconds.`;
               } else if (tooLong) {
-                const diffSeconds = actualDuration - maxDuration;
-                const diffMinutes = Math.round(diffSeconds / 60 * 10) / 10;
-                const maxMinutes = Math.round(maxDuration / 60 * 10) / 10;
-                feedbackText = `Your presentation is ${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} too long. Consider trimming less essential content, speaking more concisely, or cutting redundant points to meet the maximum duration of ${maxMinutes} minute${maxMinutes !== 1 ? 's' : ''}.`;
+                feedbackText = `Your presentation is ${actualDuration - maxDuration} seconds too long. Consider trimming less essential content, speaking more concisely, or cutting redundant points to meet the maximum duration of ${maxDuration} seconds.`;
               }
               
               feedbackReport.durationFeedback = {

@@ -22,17 +22,10 @@ export async function GET(
     }
 
     const { _id, ...rest } = feedback;
-    return NextResponse.json(
-      {
-        id: _id.toString(),
-        ...rest,
-      },
-      {
-        headers: {
-          'Cache-Control': 'private, max-age=300', // Cache for 5 minutes (feedback doesn't change)
-        },
-      }
-    );
+    return NextResponse.json({
+      id: _id.toString(),
+      ...rest,
+    });
   } catch (error) {
     console.error('Error fetching feedback:', error);
     return NextResponse.json(

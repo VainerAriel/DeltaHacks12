@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import { getContentType } from '@/lib/utils';
 
 /**
  * Route handler for /uploads/ paths (backward compatibility)
@@ -13,30 +12,41 @@ export async function GET(
   { params }: { params: { path: string[] } }
 ) {
   try {
-    const filePath = params.path.join('/');
+    const filename = params.path.join('/');
     
     // Security: prevent path traversal
-    if (filePath.includes('..')) {
+    if (filename.includes('..')) {
       return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
     }
     
-    // Build full path: public/uploads/{folder}/{filename}
-    const fullPath = join(process.cwd(), 'public', 'uploads', filePath);
+    // Extract just the filename (in case path has subdirectories)
+    const actualFilename = filename.split('/').pop() || filename;
+
+    const filePath = join(process.cwd(), 'public', 'uploads', actualFilename);
     
-    console.log(`[Uploads Route] Requested file: ${filePath}`);
-    console.log(`[Uploads Route] Full file path: ${fullPath}`);
-    console.log(`[Uploads Route] File exists: ${existsSync(fullPath)}`);
+    console.log(`[Uploads Route] Requested file: ${actualFilename}`);
+    console.log(`[Uploads Route] File path: ${filePath}`);
+    console.log(`[Uploads Route] File exists: ${existsSync(filePath)}`);
     
     // Check if file exists
-    if (!existsSync(fullPath)) {
-      console.error(`[Uploads Route] File not found: ${fullPath}`);
+    if (!existsSync(filePath)) {
+      console.error(`[Uploads Route] File not found: ${filePath}`);
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
-    
-    // Extract filename for content type detection
-    const actualFilename = filePath.split('/').pop() || filePath;
 
-    const fileBuffer = await readFile(fullPath);
+    // Determine Content-Type based on file extension
+    const getContentType = (filename: string): string => {
+      const ext = filename.toLowerCase().split('.').pop();
+      const mimeTypes: Record<string, string> = {
+        'mp4': 'video/mp4',
+        'webm': 'video/webm',
+        'mov': 'video/quicktime',
+        'avi': 'video/x-msvideo',
+      };
+      return mimeTypes[ext || ''] || 'application/octet-stream';
+    };
+
+    const fileBuffer = await readFile(filePath);
     const contentType = getContentType(actualFilename);
 
     // Return video with proper headers
