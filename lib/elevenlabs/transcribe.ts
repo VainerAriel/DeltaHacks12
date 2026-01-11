@@ -33,55 +33,67 @@ export async function transcribeAudio(videoUrl: string): Promise<Transcription> 
   }
 
   try {
-    // Download video file
-    let videoBuffer: Buffer;
-    let videoExtension = 'webm';
+    let audioBuffer: Buffer;
     
-    if (videoUrl.startsWith('http')) {
-      // Remote URL - fetch the file
-      const response = await fetch(videoUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch video from URL: ${response.status} ${response.statusText}`);
-      }
-      const arrayBuffer = await response.arrayBuffer();
-      videoBuffer = Buffer.from(arrayBuffer);
+    // Check if VM service is available - if so, skip downloading video in Next.js
+    const { isVmServiceConfigured, extractAudioFromVideo } = await import('@/lib/vm-ffmpeg/client');
+    
+    if (isVmServiceConfigured() && videoUrl.startsWith('http')) {
+      // Use VM service directly - no need to download video in Next.js
+      console.log('[Transcribe] Using VM service - skipping video download in Next.js');
+      audioBuffer = await extractAudioFromVideo(videoUrl);
+      console.log('[Transcribe] Audio extracted via VM, size:', audioBuffer.length, 'bytes');
+    } else {
+      // Fallback: Download video file for local processing
+      let videoBuffer: Buffer;
+      let videoExtension = 'webm';
       
-      // Try to determine extension from URL
-      try {
-        const urlPath = new URL(videoUrl).pathname;
-        const extMatch = urlPath.match(/\.(\w+)$/);
+      if (videoUrl.startsWith('http')) {
+        // Remote URL - fetch the file
+        const response = await fetch(videoUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch video from URL: ${response.status} ${response.statusText}`);
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        videoBuffer = Buffer.from(arrayBuffer);
+        
+        // Try to determine extension from URL
+        try {
+          const urlPath = new URL(videoUrl).pathname;
+          const extMatch = urlPath.match(/\.(\w+)$/);
+          if (extMatch) {
+            videoExtension = extMatch[1];
+          }
+        } catch (urlError) {
+          // If URL parsing fails, use default extension
+          console.warn('[Transcribe] Failed to parse URL, using default extension:', urlError);
+        }
+      } else {
+        // Local file path - read from filesystem
+        // Security: prevent path traversal attacks
+        if (videoUrl.includes('..')) {
+          throw new Error('Invalid file path: path traversal detected');
+        }
+        
+        const filePath = videoUrl.startsWith('/')
+          ? join(process.cwd(), 'public', videoUrl)
+          : join(process.cwd(), 'public', 'uploads', videoUrl);
+        
+        videoBuffer = await readFile(filePath);
+        
+        // Determine extension from file path
+        const extMatch = filePath.match(/\.(\w+)$/);
         if (extMatch) {
           videoExtension = extMatch[1];
         }
-      } catch (urlError) {
-        // If URL parsing fails, use default extension
-        console.warn('[Transcribe] Failed to parse URL, using default extension:', urlError);
       }
-    } else {
-      // Local file path - read from filesystem
-      // Security: prevent path traversal attacks
-      if (videoUrl.includes('..')) {
-        throw new Error('Invalid file path: path traversal detected');
-      }
-      
-      const filePath = videoUrl.startsWith('/')
-        ? join(process.cwd(), 'public', videoUrl)
-        : join(process.cwd(), 'public', 'uploads', videoUrl);
-      
-      videoBuffer = await readFile(filePath);
-      
-      // Determine extension from file path
-      const extMatch = filePath.match(/\.(\w+)$/);
-      if (extMatch) {
-        videoExtension = extMatch[1];
-      }
-    }
 
-    // Extract audio from video
-    console.log('[Transcribe] Extracting audio from video...');
-    // Pass videoUrl to enable VM service if configured
-    const audioBuffer = await extractAudioFromBuffer(videoBuffer, videoExtension, videoUrl);
-    console.log('[Transcribe] Audio extracted, size:', audioBuffer.length, 'bytes');
+      // Extract audio from video
+      console.log('[Transcribe] Extracting audio from video...');
+      // Pass videoUrl to enable VM service if configured (for local files)
+      audioBuffer = await extractAudioFromBuffer(videoBuffer, videoExtension, videoUrl);
+      console.log('[Transcribe] Audio extracted, size:', audioBuffer.length, 'bytes');
+    }
 
     if (!audioBuffer || audioBuffer.length === 0) {
       throw new Error('Failed to extract audio from video - audio buffer is empty');
