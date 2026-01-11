@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import BiometricChart from '@/components/feedback/BiometricChart';
 import SpeechAnalysis from '@/components/feedback/SpeechAnalysis';
 import SectorAnalysis from '@/components/feedback/SectorAnalysis';
+import BusinessPresentationFeedback from '@/components/feedback/BusinessPresentationFeedback';
 import { FeedbackReport } from '@/types/feedback';
 import { BiometricData } from '@/types/biometrics';
 import { Transcription } from '@/types/transcription';
@@ -29,6 +30,7 @@ export default function FeedbackPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processingError, setProcessingError] = useState<string | null>(null);
+  const [user, setUser] = useState<{ name: string } | null>(null);
   
   // Session mode state
   const [isSessionMode, setIsSessionMode] = useState(false);
@@ -224,6 +226,22 @@ export default function FeedbackPage() {
   }, [recordingId, loadRecordingData]);
 
   useEffect(() => {
+    // Fetch user data
+    const fetchUser = async () => {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const data = await response.json();
+          setUser({ name: data.name });
+        }
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
     // Reset retry count when recording ID changes
     retryCountRef.current = 0;
     
@@ -294,6 +312,57 @@ export default function FeedbackPage() {
     return 'destructive';
   };
 
+  const extractStrengths = (feedback: FeedbackReport): string[] => {
+    const strengths: string[] = [];
+    
+    // Check sector scores
+    if (feedback.sectorScores) {
+      if (feedback.sectorScores.confidence?.score >= 70) {
+        strengths.push('Strong confidence');
+      }
+      if (feedback.sectorScores.fluency?.score >= 70) {
+        strengths.push('Excellent fluency');
+      }
+      if (feedback.sectorScores.pronunciation?.score >= 70) {
+        strengths.push('Clear pronunciation');
+      }
+      if (feedback.sectorScores.engagement?.score >= 70) {
+        strengths.push('Great engagement');
+      }
+      if (feedback.sectorScores.tone?.score >= 70) {
+        strengths.push('Good tone');
+      }
+      if (feedback.sectorScores.vocabulary?.score >= 70) {
+        strengths.push('Strong vocabulary');
+      }
+    }
+    
+    // Check speech insights
+    if (feedback.speechInsights?.clarityScore >= 75) {
+      strengths.push('Excellent clarity');
+    }
+    
+    // Check biometric insights for positive language
+    if (feedback.biometricInsights) {
+      const heartRate = feedback.biometricInsights.heartRateAnalysis.toLowerCase();
+      const breathing = feedback.biometricInsights.breathingPattern.toLowerCase();
+      const facial = feedback.biometricInsights.facialExpressionNotes.toLowerCase();
+      
+      if (heartRate.includes('stable') || heartRate.includes('calm') || heartRate.includes('good')) {
+        strengths.push('Stable composure');
+      }
+      if (breathing.includes('steady') || breathing.includes('controlled') || breathing.includes('good')) {
+        strengths.push('Controlled breathing');
+      }
+      if (facial.includes('confident') || facial.includes('positive') || facial.includes('engaged')) {
+        strengths.push('Positive presence');
+      }
+    }
+    
+    // Limit to top 4 strengths
+    return strengths.slice(0, 4);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -336,14 +405,57 @@ export default function FeedbackPage() {
             <div>
               <h1 className="text-3xl font-bold">Feedback Report</h1>
               <p className="text-muted-foreground">
-                {new Date(recording.createdAt).toLocaleDateString()}
+                {user?.name ? `Great work, ${user.name}!` : new Date(recording.createdAt).toLocaleDateString()}
               </p>
             </div>
           </div>
-          <Button onClick={() => router.push('/practice')} className="gap-2">
-            <RotateCcw className="w-4 h-4" />
-            Practice Again
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button 
+              onClick={() => {
+                if (!recording) return;
+                const params = new URLSearchParams();
+                if (recording.scenario) {
+                  params.set('scenario', recording.scenario);
+                }
+                if (recording.referenceDocumentId) {
+                  params.set('referenceDocumentId', recording.referenceDocumentId);
+                }
+                if (recording.referenceType) {
+                  params.set('referenceType', recording.referenceType);
+                }
+                if (recording.minDuration) {
+                  params.set('minDuration', recording.minDuration.toString());
+                }
+                if (recording.maxDuration) {
+                  params.set('maxDuration', recording.maxDuration.toString());
+                }
+                
+                // Navigate to appropriate practice page based on scenario
+                const practicePath = recording.scenario === 'business-presentation' 
+                  ? '/practice/business-presentation'
+                  : recording.scenario === 'job-interview'
+                  ? '/practice/job-interview'
+                  : recording.scenario === 'elevator-pitch'
+                  ? '/practice/elevator-pitch'
+                  : recording.scenario === 'casual-conversation'
+                  ? '/practice/casual-conversation'
+                  : '/practice';
+                
+                router.push(`${practicePath}${params.toString() ? `?${params.toString()}` : ''}`);
+              }} 
+              className="gap-2"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Practice Again
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => router.push('/dashboard')}
+              className="gap-2"
+            >
+              Return to Home
+            </Button>
+          </div>
         </div>
 
         {/* Question Navigation for Session Mode - Moved to top for better visibility */}
@@ -458,6 +570,29 @@ export default function FeedbackPage() {
           </Card>
         ) : null}
 
+        {/* Strengths Card - What Went Well */}
+        {feedback && (() => {
+          const strengths = extractStrengths(feedback);
+          return strengths.length > 0 ? (
+            <Card className="border-green-200 dark:border-green-800">
+              <CardHeader>
+                <CardTitle>What Went Well</CardTitle>
+                <CardDescription>Your key strengths from this session</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {strengths.map((strength, index) => (
+                    <div key={index} className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-md">
+                      <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                      <span className="text-sm font-medium">{strength}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : null;
+        })()}
+
         {/* Question Display for Session Mode */}
         {isSessionMode && recording?.questionText && (
           <Card>
@@ -540,74 +675,23 @@ export default function FeedbackPage() {
         {/* Speech Analysis */}
         {transcription && <SpeechAnalysis transcription={transcription} />}
 
-        {/* Sector Analysis */}
+        {/* Sector Analysis - Use BusinessPresentationFeedback for business-presentation scenario */}
         {feedback && feedback.sectorScores && (
-          <SectorAnalysis 
-            sectorScores={feedback.sectorScores}
-            confidenceData={feedback.confidenceData}
-            engagementData={feedback.engagementData}
-            onTimeClick={handleTimeClick}
-          />
-        )}
-
-        {/* Insights and Recommendations */}
-        {feedback && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Biometric Insights */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Physical Confidence Indicators</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h3 className="font-semibold mb-2">Heart Rate Analysis</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {feedback.biometricInsights.heartRateAnalysis}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-2">Breathing Pattern</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {feedback.biometricInsights.breathingPattern}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-2">Facial Expressions</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {feedback.biometricInsights.facialExpressionNotes}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Speech Insights */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Speech Quality Analysis</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold">Clarity Score</h3>
-                    <Badge>{feedback.speechInsights.clarityScore}/100</Badge>
-                  </div>
-                  <Progress value={feedback.speechInsights.clarityScore} className="h-2" />
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-2">Pause Analysis</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {feedback.speechInsights.pauseAnalysis}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-2">Pronunciation Notes</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {feedback.speechInsights.pronunciationNotes}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          recording?.scenario === 'business-presentation' ? (
+            <BusinessPresentationFeedback
+              sectorScores={feedback.sectorScores}
+              confidenceData={feedback.confidenceData}
+              engagementData={feedback.engagementData}
+              onTimeClick={handleTimeClick}
+            />
+          ) : (
+            <SectorAnalysis 
+              sectorScores={feedback.sectorScores}
+              confidenceData={feedback.confidenceData}
+              engagementData={feedback.engagementData}
+              onTimeClick={handleTimeClick}
+            />
+          )
         )}
 
         {/* Recommendations */}
@@ -622,7 +706,7 @@ export default function FeedbackPage() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {(feedback.recommendations || []).filter(rec => rec != null).map((rec, index) => (
-                  <Card key={index} className="border-l-4 border-l-primary">
+                  <Card key={index} className="border-l-4 border-l-primary hover:-translate-y-1 transition-transform duration-200">
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between mb-2">
                         <h3 className="font-semibold">{rec?.title || 'Recommendation'}</h3>

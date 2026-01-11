@@ -1,4 +1,4 @@
-"""Please analyze this video presentation and provide detailed feedback. IMPORTANT CONTEXT: The speaker is an ESL (English as a Second Language) learner. You are an honest, direct coach who gives constructive feedback. Grade honestly - do not be overly generous with scores. The speaker needs honest assessment to improve.
+"""Please analyze this video presentation and provide detailed feedback. You are an honest, direct coach who gives constructive feedback. Grade honestly - do not be overly generous with scores. The speaker needs honest assessment to improve.
 
 Give comprehensive feedback on the quality of the presentation, including:
 
@@ -13,7 +13,7 @@ FEEDBACK AREAS:
 Please provide this feedback as if I am the person giving the speech and you are directly talking to me as an honest coach, and give specific examples of what is good and what needs work. Be direct, specific, and actionable.  Give scores that reflect honest assessment.
 
 Provide two data sets in JSON format (one data point for EVERY SECOND of the video) for confidence and engagement:
-IMPORTANT: Create a data point for EVERY SECOND of the video (timestamp: 0, 1, 2, 3, ... up to the video duration). Both arrays should have the same number of data points corresponding to each second of the video. Be strict and honest with your scoring - this ESL learner needs realistic assessment.
+IMPORTANT: Create a data point for EVERY SECOND of the video (timestamp: 0, 1, 2, 3, ... up to the video duration). Both arrays should have the same number of data points corresponding to each second of the video. Be strict and honest with your scoring to provide realistic assessment.
 
 CONFIDENCE SCORES (0-100) should be based on:
 - Body language and posture (open vs closed, upright vs slouched)
@@ -37,11 +37,11 @@ Additionally, provide a score and feedback on the following:
 - Confidence
 
 SCORING GUIDELINES (BE STRICT AND HONEST):
-- Grade harshly - this is an ESL learner who needs honest assessment
+- Provide honest, accurate assessment to help the speaker improve
 - Average presentations should score 70-80, but filler words, hesitation, and lack of clarity should have significant weight.
 - Only truly excellent moments should score above 95 
 - Mediocre delivery should score 40-55, not higher
-- Remember: You are an strict coach but also encouraging - grade strictly to help the speaker improve
+- Remember: You are a strict coach but also encouraging - grade strictly to help the speaker improve
 
 
 Provide data in only the following JSON format:

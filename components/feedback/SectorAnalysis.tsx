@@ -28,62 +28,90 @@ const sectorLabels: Record<keyof SectorAnalysisProps['sectorScores'], { title: s
   confidence: { title: 'Confidence', description: 'Presence and composure in delivery' },
 };
 
-const getScoreColor = (score: number): string => {
-  if (score >= 80) return 'text-green-600 dark:text-green-400';
-  if (score >= 60) return 'text-yellow-600 dark:text-yellow-400';
-  return 'text-red-600 dark:text-red-400';
+const getScoreBadgeBackground = (score: number): string => {
+  if (score > 60) return 'bg-green-600 dark:bg-green-500';
+  if (score < 50) return 'bg-red-600 dark:bg-red-500';
+  return 'bg-yellow-600 dark:bg-yellow-500';
 };
 
-const getScoreBadgeVariant = (score: number): 'default' | 'secondary' | 'destructive' => {
-  if (score >= 80) return 'default';
-  if (score >= 60) return 'secondary';
-  return 'destructive';
-};
-
-export default function SectorAnalysis({ sectorScores, onTimeClick }: SectorAnalysisProps) {
+const renderSectorCard = (sectorKey: keyof typeof sectorLabels, sector: SectorScore) => {
+  const label = sectorLabels[sectorKey];
+  const score = sector.score;
+  
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>6 Sector Analysis</CardTitle>
-        <CardDescription>
-          Detailed breakdown of performance across key communication areas
+    <Card key={sectorKey} className="border-l-4 border-l-primary">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">{label.title}</CardTitle>
+          <Badge 
+            variant="outline"
+            className={`${getScoreBadgeBackground(score)} text-white border-transparent`}
+          >
+            {score}/100
+          </Badge>
+        </div>
+        <CardDescription className="text-xs">
+          {label.description}
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {(Object.keys(sectorLabels) as Array<keyof typeof sectorLabels>).map((sectorKey) => {
-            const sector = sectorScores[sectorKey];
-            const label = sectorLabels[sectorKey];
-            const score = sector.score;
-            
-            return (
-              <Card key={sectorKey} className="border-l-4 border-l-primary">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{label.title}</CardTitle>
-                    <Badge variant={getScoreBadgeVariant(score)}>
-                      {score}/100
-                    </Badge>
-                  </div>
-                  <CardDescription className="text-xs">
-                    {label.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <Progress value={score} className="h-2" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {sector.feedback}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+      <CardContent className="space-y-3">
+        <div>
+          <Progress value={score} className="h-2" />
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {sector.feedback}
+          </p>
         </div>
       </CardContent>
     </Card>
+  );
+};
+
+export default function SectorAnalysis({ sectorScores, onTimeClick }: SectorAnalysisProps) {
+  // Communication Style sectors: tone, fluency, vocabulary, pronunciation
+  const communicationStyleSectors: Array<keyof typeof sectorLabels> = ['tone', 'fluency', 'vocabulary', 'pronunciation'];
+  
+  // Other sectors: engagement, confidence
+  const otherSectors: Array<keyof typeof sectorLabels> = ['engagement', 'confidence'];
+  
+  return (
+    <div className="space-y-6">
+      {/* Communication Style Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Communication Style</CardTitle>
+          <CardDescription>
+            How you express yourself through language and delivery
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {communicationStyleSectors.map((sectorKey) => 
+              renderSectorCard(sectorKey, sectorScores[sectorKey])
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Other Sectors */}
+      {otherSectors.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Presence & Delivery</CardTitle>
+            <CardDescription>
+              Your physical presence and connection with the audience
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {otherSectors.map((sectorKey) => 
+                renderSectorCard(sectorKey, sectorScores[sectorKey])
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }
