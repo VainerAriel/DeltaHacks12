@@ -272,22 +272,22 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete }:
             onDragOver={handleDragOver}
             onDrop={handleDrop}
           >
-            {videoUrl && !isRecording ? (
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              className={`w-full h-full ${isRecording ? 'object-cover' : 'object-contain'}`}
+              style={{ display: isRecording ? 'block' : 'none' }}
+            />
+            {videoUrl && !isRecording && (
               <video
-                ref={videoRef}
                 src={videoUrl}
                 controls
                 className="w-full h-full object-contain"
               />
-            ) : isRecording ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                muted
-                playsInline
-                className="w-full h-full object-cover"
-              />
-            ) : (
+            )}
+            {!isRecording && !videoUrl && (
               <div className="w-full h-full flex items-center justify-center">
                 <div className="text-center text-gray-400">
                   <Video className="w-16 h-16 mx-auto mb-2" />
