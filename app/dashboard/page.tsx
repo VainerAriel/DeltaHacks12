@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Recording, RecordingStatus } from '@/types/recording';
 import { FeedbackReport } from '@/types/feedback';
-import { Video, Plus, TrendingUp, Loader2 } from 'lucide-react';
+import { Video, Plus, TrendingUp, Loader2, LogOut } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -52,6 +52,28 @@ export default function DashboardPage() {
       console.error('Error fetching recordings:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+      });
+      
+      if (response.ok) {
+        // Clear user state and redirect to login
+        setUser(null);
+        router.push('/login');
+      } else {
+        console.error('Logout failed');
+        // Still redirect to login even if API call fails
+        router.push('/login');
+      }
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Still redirect to login even if there's an error
+      router.push('/login');
     }
   };
 
@@ -156,12 +178,18 @@ export default function DashboardPage() {
               Welcome back, {user?.name || 'User'}
             </p>
           </div>
-          <Link href="/practice">
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              New Practice Session
+          <div className="flex items-center gap-3">
+            <Link href="/practice">
+              <Button className="gap-2">
+                <Plus className="w-4 h-4" />
+                New Practice Session
+              </Button>
+            </Link>
+            <Button variant="outline" onClick={handleLogout} className="gap-2">
+              <LogOut className="w-4 h-4" />
+              Logout
             </Button>
-          </Link>
+          </div>
         </div>
 
         {/* Stats Cards */}

@@ -2,19 +2,26 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  // Simplified middleware for development
-  // In production, add proper authentication checks
-  
   const { pathname } = request.nextUrl;
-  const authToken = request.cookies.get('auth-token');
-
-  // Allow all routes in development - remove auth checks for easier development
-  // Uncomment below for production:
   
-  // const publicRoutes = ['/', '/login', '/register'];
-  // if (!publicRoutes.includes(pathname) && !authToken) {
-  //   return NextResponse.redirect(new URL('/login', request.url));
-  // }
+  // Public routes that don't require authentication
+  const publicRoutes = ['/', '/login', '/register'];
+  const isPublicRoute = publicRoutes.includes(pathname);
+  
+  // Check if auth token cookie exists (lightweight check for Edge Runtime)
+  // Full JWT verification happens in API routes and client-side
+  const authToken = request.cookies.get('auth-token');
+  const hasAuthToken = !!authToken?.value;
+
+  // If user has auth token and trying to access login/register, redirect to dashboard
+  if (hasAuthToken && (pathname === '/login' || pathname === '/register')) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  // If user doesn't have auth token and trying to access a protected route, redirect to login
+  if (!hasAuthToken && !isPublicRoute) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
 
   return NextResponse.next();
 }

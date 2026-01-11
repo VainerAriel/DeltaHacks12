@@ -5,7 +5,7 @@ import bcrypt from 'bcrypt';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
+    const { email, password, rememberMe } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -56,10 +56,12 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Set token expiration based on rememberMe: 30 days if true, 1 day if false
+    const tokenExpiration = rememberMe ? '30d' : '1d';
     const token = jwt.sign(
       { userId: user._id.toString(), email: user.email },
       secret,
-      { expiresIn: '7d' }
+      { expiresIn: tokenExpiration }
     );
 
     const response = NextResponse.json({
@@ -70,12 +72,17 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Set cookie
+    // Set cookie with expiration based on rememberMe
+    // If rememberMe is true: 30 days, if false: 1 day
+    const cookieMaxAge = rememberMe 
+      ? 60 * 60 * 24 * 30 // 30 days
+      : 60 * 60 * 24; // 1 day
+    
     response.cookies.set('auth-token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: cookieMaxAge,
     });
 
     return response;
