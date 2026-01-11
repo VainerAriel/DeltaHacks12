@@ -66,18 +66,7 @@ export async function POST(req: NextRequest) {
     const extension = file.name.split('.').pop();
     const fileName = `${recordingId}.${extension}`;
 
-    // Extract video duration
-    let duration = 0;
-    try {
-      console.log('[Upload] Extracting video duration...');
-      duration = await getVideoDuration(file, file.type);
-      console.log('[Upload] Video duration:', duration, 'seconds');
-    } catch (error) {
-      console.error('[Upload] Failed to extract video duration:', error);
-      // Continue with duration = 0 if extraction fails
-    }
-
-    // Upload to S3 (required on Vercel)
+    // Upload to S3 first (required on Vercel) - we need videoUrl for VM service
     let videoUrl: string;
     if (isS3Configured) {
       try {
@@ -137,6 +126,26 @@ export async function POST(req: NextRequest) {
       
       // Use /uploads/ path - will be served by app/uploads/[...path]/route.ts
       videoUrl = `/uploads/${fileName}`;
+    }
+
+    // Extract video duration after upload (so we can use VM service with videoUrl)
+    let duration = 0;
+    try {
+      console.log('[Upload] Extracting video duration...');
+      // On Vercel, videoUrl must be an HTTP URL (S3) for VM service
+      // In dev, can use local file path
+      const durationUrl = process.env.VERCEL || videoUrl.startsWith('http') 
+        ? videoUrl 
+        : undefined;
+      duration = await getVideoDuration(file, file.type, durationUrl);
+      console.log('[Upload] Video duration:', duration, 'seconds');
+    } catch (error) {
+      console.error('[Upload] Failed to extract video duration:', error);
+      // Continue with duration = 0 if extraction fails
+      // On Vercel, this might fail if VM service is not configured, but we'll continue
+      if (process.env.VERCEL) {
+        console.warn('[Upload] Duration extraction failed on Vercel. Ensure VM service is configured.');
+      }
     }
 
     // Create recording document

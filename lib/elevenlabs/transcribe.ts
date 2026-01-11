@@ -38,7 +38,15 @@ export async function transcribeAudio(videoUrl: string): Promise<Transcription> 
     // Check if VM service is available - if so, skip downloading video in Next.js
     const { isVmServiceConfigured, extractAudioFromVideo } = await import('@/lib/vm-ffmpeg/client');
     
-    if (isVmServiceConfigured() && videoUrl.startsWith('http')) {
+    // On Vercel, VM service is required for video processing
+    if (process.env.VERCEL) {
+      if (!isVmServiceConfigured() || !videoUrl.startsWith('http')) {
+        throw new Error('VM service is required on Vercel. Please configure FFMPEG_VM_URL and FFMPEG_API_KEY, and ensure videos are uploaded to S3 (not local storage).');
+      }
+      console.log('[Transcribe] Using VM service - skipping video download in Next.js (Vercel)');
+      audioBuffer = await extractAudioFromVideo(videoUrl);
+      console.log('[Transcribe] Audio extracted via VM, size:', audioBuffer.length, 'bytes');
+    } else if (isVmServiceConfigured() && videoUrl.startsWith('http')) {
       // Use VM service directly - no need to download video in Next.js
       console.log('[Transcribe] Using VM service - skipping video download in Next.js');
       audioBuffer = await extractAudioFromVideo(videoUrl);
