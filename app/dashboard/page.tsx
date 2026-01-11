@@ -87,7 +87,6 @@ export default function DashboardPage() {
     const variants: Record<RecordingStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
       [RecordingStatus.UPLOADING]: { label: 'Uploading', variant: 'outline' },
       [RecordingStatus.PROCESSING]: { label: 'Processing', variant: 'outline' },
-      [RecordingStatus.EXTRACTING_BIOMETRICS]: { label: 'Extracting Data', variant: 'outline' },
       [RecordingStatus.TRANSCRIBING]: { label: 'Transcribing', variant: 'outline' },
       [RecordingStatus.ANALYZING]: { label: 'Analyzing', variant: 'outline' },
       [RecordingStatus.COMPLETE]: { label: 'Complete', variant: 'default' },
@@ -271,7 +270,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Progress Over Time</CardTitle>
-              <CardDescription>Your speaking score improvements</CardDescription>
+              <CardDescription>See how far you've come on your speaking journey</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -299,7 +298,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Your Recordings</CardTitle>
-            <CardDescription>View and manage your practice sessions</CardDescription>
+            <CardDescription>Celebrate your practice and track your growth</CardDescription>
           </CardHeader>
           <CardContent>
             {displayRecordings.length === 0 ? (

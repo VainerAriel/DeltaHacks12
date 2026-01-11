@@ -173,7 +173,7 @@ export default function BusinessPresentationPracticePage() {
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div>
-                <h1 className="text-3xl font-bold mb-2">Business Presentation Practice</h1>
+                <h1 className="text-3xl font-bold mb-2">Presentation Practice</h1>
                 <p className="text-muted-foreground">
                   Deliver a clear and engaging presentation to your team
                 </p>
@@ -396,7 +396,7 @@ export default function BusinessPresentationPracticePage() {
             <div className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Business Presentation</CardTitle>
+                  <CardTitle>Presentation</CardTitle>
                   <CardDescription>
                     Deliver a clear and engaging presentation to your team
                   </CardDescription>
@@ -440,7 +440,7 @@ export default function BusinessPresentationPracticePage() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
-              <h1 className="text-3xl font-bold mb-2">Business Presentation Practice</h1>
+              <h1 className="text-3xl font-bold mb-2">Presentation Practice</h1>
               <p className="text-muted-foreground">
                 Deliver a clear and engaging presentation to your team
               </p>
@@ -520,7 +520,7 @@ export default function BusinessPresentationPracticePage() {
           <div className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Business Presentation</CardTitle>
+                <CardTitle>Presentation</CardTitle>
                 <CardDescription>
                   Deliver a clear and engaging presentation to your team
                 </CardDescription>

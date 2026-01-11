@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Briefcase, Rocket, Presentation, MessageCircle, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Briefcase, Rocket, Presentation, ArrowRight } from 'lucide-react';
 
 const practiceScenarios = [
   {
@@ -22,18 +22,11 @@ const practiceScenarios = [
     iconClass: 'bg-gradient-to-br from-purple-500 to-pink-500 group-hover:from-purple-600 group-hover:to-pink-600',
   },
   {
-    id: 'business-presentation',
-    title: 'Business Presentation',
+    id: 'presentation',
+    title: 'Presentation',
     description: 'Deliver a clear and engaging presentation to your team',
     icon: Presentation,
     iconClass: 'bg-gradient-to-br from-orange-500 to-red-500 group-hover:from-orange-600 group-hover:to-red-600',
-  },
-  {
-    id: 'casual-conversation',
-    title: 'Casual Conversation',
-    description: 'Practice natural conversation skills for everyday situations',
-    icon: MessageCircle,
-    iconClass: 'bg-gradient-to-br from-green-500 to-emerald-500 group-hover:from-green-600 group-hover:to-emerald-600',
   },
 ];
 

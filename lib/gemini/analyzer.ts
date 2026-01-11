@@ -1,7 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { BiometricData } from '@/types/biometrics';
 import { Transcription } from '@/types/transcription';
 import { FeedbackReport, Recommendation } from '@/types/feedback';
 
@@ -49,7 +48,7 @@ function getScenarioTailoring(scenario?: string): string {
       return 'In addition to the above general analysis, take into account when grading each of the 6 sectors appropriate tailoring to a 60 second elevator pitch. Consider: energetic yet professional tone, concise and fluent delivery within time constraints, impactful vocabulary choices, clear pronunciation for quick understanding, high engagement to capture attention immediately, and confident presence despite brevity.';
     
     case 'business-presentation':
-      return 'In addition to the above general analysis, take into account when grading each of the 6 sectors appropriate tailoring to a formal business presentation. Consider: authoritative yet approachable tone, smooth fluency without filler words, professional vocabulary appropriate for business context, clear pronunciation for diverse audiences, engagement that maintains audience attention throughout, and confident delivery that establishes credibility.\n\nIMPORTANT: For confidence and engagement feedback, provide specific examples of strengths and weaknesses. Highlight moments where the speaker demonstrated strong confidence or engagement, and identify specific areas or timestamps where improvement is needed. Be specific about what worked well and what needs improvement.';
+      return 'In addition to the above general analysis, take into account when grading each of the 6 sectors appropriate tailoring to a formal (business) presentation. Consider: authoritative yet approachable tone, smooth fluency without filler words, professional vocabulary appropriate for business context, clear pronunciation for diverse audiences, engagement that maintains audience attention throughout, and confident delivery that establishes credibility.\n\nIMPORTANT: For confidence and engagement feedback, provide specific examples of strengths and weaknesses. Highlight moments where the speaker demonstrated strong confidence or engagement, and identify specific areas or timestamps where improvement is needed. Be specific about what worked well and what needs improvement.';
     
     default:
       return '';
@@ -61,7 +60,6 @@ function getScenarioTailoring(scenario?: string): string {
  */
 function buildPrompt(
   basePrompt: string,
-  biometricData: BiometricData,
   transcription: Transcription,
   duration: number,
   scenario?: string,
@@ -72,22 +70,8 @@ function buildPrompt(
   maxDuration?: number,
   actualDuration?: number
 ): string {
-  // Calculate average metrics
-  const avgHeartRate = biometricData.heartRate.length > 0
-    ? biometricData.heartRate.reduce((a, b) => a + b, 0) / biometricData.heartRate.length
-    : 70;
-  const avgBreathing = biometricData.breathing.length > 0
-    ? biometricData.breathing.reduce((a, b) => a + b, 0) / biometricData.breathing.length
-    : 12;
-  const expressions = biometricData.facialExpressions.map(e => e.expression);
-
   // Build data section to prepend
-  let dataSection = `Biometric Data:
-- Average Heart Rate: ${avgHeartRate.toFixed(1)} bpm
-- Average Breathing Rate: ${avgBreathing.toFixed(1)} breaths/min
-- Facial Expressions: ${expressions.join(', ')}
-
-Speech Data:
+  let dataSection = `Speech Data:
 - Words Per Minute: ${transcription.metrics.wpm}
 - Filler Words Count: ${transcription.metrics.fillerWordsCount}
 - Longest Pause: ${transcription.metrics.longestPause}s
@@ -166,8 +150,7 @@ Include duration-related recommendations in your response.`;
 
 /**
  * Analyze presentation using Google Gemini API
- * @param biometricData - Biometric data from Presage
- * @param transcription - Transcription data from ElevenLabs
+ * @param transcription - Transcription data from Whisper
  * @param scenario - Optional scenario type (e.g., 'job-interview', 'elevator-pitch', 'business-presentation')
  * @param questionText - Optional question text (for job interview scenarios)
  * @param duration - Video duration in seconds
@@ -179,7 +162,6 @@ Include duration-related recommendations in your response.`;
  * @returns Structured feedback report
  */
 export async function analyzePresentation(
-  biometricData: BiometricData,
   transcription: Transcription,
   scenario?: string,
   questionText?: string,
@@ -203,7 +185,6 @@ export async function analyzePresentation(
   // Build complete prompt
   const prompt = buildPrompt(
     basePrompt,
-    biometricData,
     transcription,
     videoDuration,
     scenario,
@@ -317,16 +298,6 @@ export async function analyzePresentation(
           const confidenceData = parsed.confidenceData || [];
           const engagementData = parsed.engagementData || [];
 
-          // Extract biometric insights (for backward compatibility)
-          // Generate from existing data if not in response
-          const avgHeartRate = biometricData.heartRate.length > 0
-            ? biometricData.heartRate.reduce((a, b) => a + b, 0) / biometricData.heartRate.length
-            : 70;
-          const avgBreathing = biometricData.breathing.length > 0
-            ? biometricData.breathing.reduce((a, b) => a + b, 0) / biometricData.breathing.length
-            : 12;
-          const expressions = biometricData.facialExpressions.map(e => e.expression);
-
           // Build feedback report
           const feedbackReport: FeedbackReport = {
             id: `feedback-${Date.now()}`,
@@ -342,12 +313,6 @@ export async function analyzePresentation(
             },
             confidenceData: confidenceData.length > 0 ? confidenceData : undefined,
             engagementData: engagementData.length > 0 ? engagementData : undefined,
-            // Keep existing fields for backward compatibility
-            biometricInsights: parsed.biometricInsights || {
-              heartRateAnalysis: `Average heart rate: ${avgHeartRate.toFixed(1)} bpm. ${avgHeartRate < 70 ? 'Calm and composed.' : avgHeartRate < 85 ? 'Moderate, slight elevation.' : 'Elevated, indicating possible nervousness.'}`,
-              breathingPattern: `Average breathing rate: ${avgBreathing.toFixed(1)} breaths/min. ${avgBreathing < 12 ? 'Calm breathing pattern.' : avgBreathing < 16 ? 'Moderate breathing.' : 'Elevated breathing rate.'}`,
-              facialExpressionNotes: expressions.length > 0 ? `Observed expressions: ${expressions.join(', ')}.` : 'No facial expression data available.',
-            },
             speechInsights: parsed.speechInsights || {
               wpm: transcription.metrics.wpm,
               fillerWordsCount: transcription.metrics.fillerWordsCount,

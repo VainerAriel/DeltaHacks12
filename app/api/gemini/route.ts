@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, collections } from '@/lib/db/mongodb';
 import { analyzePresentation } from '@/lib/gemini/analyzer';
 import { RecordingStatus } from '@/types/recording';
-import { BiometricData } from '@/types/biometrics';
 import { Transcription } from '@/types/transcription';
 import { ObjectId } from 'mongodb';
 
@@ -42,18 +41,14 @@ export async function POST(request: NextRequest) {
       _id: new ObjectId(recordingId),
     });
 
-    // Fetch biometric data and transcription
-    const biometricData = await db.collection(collections.biometricData).findOne({
-      recordingId,
-    });
-
+    // Fetch transcription
     const transcription = await db.collection(collections.transcriptions).findOne({
       recordingId,
     });
 
-    if (!biometricData || !transcription) {
+    if (!transcription) {
       return NextResponse.json(
-        { error: 'Biometric data or transcription not found. Please process them first.' },
+        { error: 'Transcription not found. Please process it first.' },
         { status: 404 }
       );
     }
@@ -88,7 +83,6 @@ export async function POST(request: NextRequest) {
 
     // Analyze presentation
     const feedbackReport = await analyzePresentation(
-      biometricData as unknown as BiometricData,
       transcription as unknown as Transcription,
       scenario,
       questionText,

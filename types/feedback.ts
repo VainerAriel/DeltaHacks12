@@ -17,12 +17,6 @@ export interface FeedbackReport {
   };
   confidenceData?: Array<{ timestamp: number; confidence: number }>;
   engagementData?: Array<{ timestamp: number; engagement: number }>;
-  // Keep existing fields for backward compatibility
-  biometricInsights: {
-    heartRateAnalysis: string;
-    breathingPattern: string;
-    facialExpressionNotes: string;
-  };
   speechInsights: {
     wpm: number;
     fillerWordsCount: number;

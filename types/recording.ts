@@ -1,7 +1,6 @@
 export enum RecordingStatus {
   UPLOADING = 'uploading',
   PROCESSING = 'processing',
-  EXTRACTING_BIOMETRICS = 'extracting_biometrics',
   TRANSCRIBING = 'transcribing',
   ANALYZING = 'analyzing',
   COMPLETE = 'complete',
@@ -22,5 +21,5 @@ export interface Recording {
   referenceType?: 'slides' | 'script'; // Type of reference document
   minDuration?: number; // Minimum duration in seconds
   maxDuration?: number; // Maximum duration in seconds
-  scenario?: string; // Scenario type (e.g., 'business-presentation', 'job-interview', 'elevator-pitch', 'casual-conversation')
+  scenario?: string; // Scenario type (e.g., 'business-presentation', 'job-interview', 'elevator-pitch')
 }

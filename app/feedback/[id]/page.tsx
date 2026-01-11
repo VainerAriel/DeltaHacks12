@@ -6,12 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import BiometricChart from '@/components/feedback/BiometricChart';
-import SpeechAnalysis from '@/components/feedback/SpeechAnalysis';
 import SectorAnalysis from '@/components/feedback/SectorAnalysis';
 import BusinessPresentationFeedback from '@/components/feedback/BusinessPresentationFeedback';
 import { FeedbackReport } from '@/types/feedback';
-import { BiometricData } from '@/types/biometrics';
 import { Transcription } from '@/types/transcription';
 import { Recording, RecordingStatus } from '@/types/recording';
 import { Loader2, ArrowLeft, RotateCcw, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -24,7 +21,6 @@ export default function FeedbackPage() {
 
   const [recording, setRecording] = useState<Recording | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [biometricData, setBiometricData] = useState<BiometricData | null>(null);
   const [transcription, setTranscription] = useState<Transcription | null>(null);
   const [feedback, setFeedback] = useState<FeedbackReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,13 +41,6 @@ export default function FeedbackPage() {
   const feedbackRef = useRef<FeedbackReport | null>(null);
 
   const loadRecordingData = useCallback(async (recId: string, scenarioOverride?: string, sessionDataOverride?: (Recording & { feedback?: FeedbackReport })[]) => {
-    // Fetch biometric data
-    const biometricRes = await fetch(`/api/biometrics/${recId}`);
-    if (biometricRes.ok) {
-      const biometricData = await biometricRes.json();
-      setBiometricData(biometricData);
-    }
-
     // Fetch transcription
     const transcriptionRes = await fetch(`/api/transcriptions/${recId}`);
     if (transcriptionRes.ok) {
@@ -113,8 +102,8 @@ export default function FeedbackPage() {
           }
         }
         
-        // If biometrics and transcription succeeded but feedback wasn't generated yet, retry after delay
-        if (processResult.biometrics && processResult.transcription && !processResult.feedback) {
+        // If transcription succeeded but feedback wasn't generated yet, retry after delay
+        if (processResult.transcription && !processResult.feedback) {
           retryCountRef.current += 1;
           if (retryCountRef.current >= maxRetries) {
             setProcessingError('Processing is taking longer than expected. Please refresh the page or try again later.');
@@ -123,7 +112,7 @@ export default function FeedbackPage() {
           pollingTimeoutRef.current = setTimeout(() => {
             loadRecordingData(recId, scenario, sessionDataOverride);
           }, 3000);
-        } else if (!processResult.biometrics || !processResult.transcription) {
+        } else if (!processResult.transcription) {
           setProcessingError('Failed to process recording data. Please try again later.');
         }
       } catch (err) {
@@ -290,7 +279,7 @@ export default function FeedbackPage() {
       setFeedback(targetRecording.feedback);
     }
     
-    // Load data for the new recording (biometrics, transcription, and feedback if not already set)
+    // Load data for the new recording (transcription and feedback if not already set)
     await loadRecordingData(targetRecording.id);
   };
 
@@ -340,23 +329,6 @@ export default function FeedbackPage() {
     // Check speech insights
     if (feedback.speechInsights?.clarityScore >= 75) {
       strengths.push('Excellent clarity');
-    }
-    
-    // Check biometric insights for positive language
-    if (feedback.biometricInsights) {
-      const heartRate = feedback.biometricInsights.heartRateAnalysis.toLowerCase();
-      const breathing = feedback.biometricInsights.breathingPattern.toLowerCase();
-      const facial = feedback.biometricInsights.facialExpressionNotes.toLowerCase();
-      
-      if (heartRate.includes('stable') || heartRate.includes('calm') || heartRate.includes('good')) {
-        strengths.push('Stable composure');
-      }
-      if (breathing.includes('steady') || breathing.includes('controlled') || breathing.includes('good')) {
-        strengths.push('Controlled breathing');
-      }
-      if (facial.includes('confident') || facial.includes('positive') || facial.includes('engaged')) {
-        strengths.push('Positive presence');
-      }
     }
     
     // Limit to top 4 strengths
@@ -437,8 +409,6 @@ export default function FeedbackPage() {
                   ? '/practice/job-interview'
                   : recording.scenario === 'elevator-pitch'
                   ? '/practice/elevator-pitch'
-                  : recording.scenario === 'casual-conversation'
-                  ? '/practice/casual-conversation'
                   : '/practice';
                 
                 router.push(`${practicePath}${params.toString() ? `?${params.toString()}` : ''}`);
@@ -551,7 +521,7 @@ export default function FeedbackPage() {
                   <p className="text-muted-foreground">
                     {feedback.sectorScores 
                       ? 'Average of 6 Sector Scores'
-                      : 'Based on biometric data and speech analysis'}
+                      : 'Based on speech analysis'}
                   </p>
                 </div>
                 <div className="text-center">
@@ -569,29 +539,6 @@ export default function FeedbackPage() {
             </CardContent>
           </Card>
         ) : null}
-
-        {/* Strengths Card - What Went Well */}
-        {feedback && (() => {
-          const strengths = extractStrengths(feedback);
-          return strengths.length > 0 ? (
-            <Card className="border-green-200 dark:border-green-800">
-              <CardHeader>
-                <CardTitle>What Went Well</CardTitle>
-                <CardDescription>Your key strengths from this session</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {strengths.map((strength, index) => (
-                    <div key={index} className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-md">
-                      <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-                      <span className="text-sm font-medium">{strength}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ) : null;
-        })()}
 
         {/* Question Display for Session Mode */}
         {isSessionMode && recording?.questionText && (
@@ -628,7 +575,7 @@ export default function FeedbackPage() {
           </Card>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
           {/* Video Player */}
           <Card>
             <CardHeader>
@@ -666,14 +613,139 @@ export default function FeedbackPage() {
             </CardContent>
           </Card>
 
-          {/* Biometric Chart */}
-          {biometricData && (
-            <BiometricChart biometricData={biometricData} onTimeClick={handleTimeClick} />
+          {/* Speech Metrics */}
+          {transcription && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Speech Metrics</CardTitle>
+                <CardDescription>Key performance indicators</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="p-3 bg-muted rounded-md">
+                    <p className="text-sm text-muted-foreground">Words Per Minute</p>
+                    <p className="text-2xl font-bold">{transcription.metrics.wpm}</p>
+                  </div>
+                  <div className="p-3 bg-muted rounded-md">
+                    <p className="text-sm text-muted-foreground">Filler Words</p>
+                    <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                      {transcription.metrics.fillerWordsCount}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-muted rounded-md">
+                    <p className="text-sm text-muted-foreground">Longest Pause</p>
+                    <p className="text-2xl font-bold">{transcription.metrics.longestPause}s</p>
+                  </div>
+                  <div className="p-3 bg-muted rounded-md">
+                    <p className="text-sm text-muted-foreground">Total Pauses</p>
+                    <p className="text-2xl font-bold">{transcription.metrics.totalPauses}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </div>
 
-        {/* Speech Analysis */}
-        {transcription && <SpeechAnalysis transcription={transcription} />}
+        {/* Speech Analysis - Transcription and Word Cloud */}
+        {transcription && (
+          <div className="space-y-4">
+            {/* Transcription Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Transcription</CardTitle>
+                <CardDescription>
+                  Filler words are highlighted in yellow
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="p-4 bg-muted rounded-md min-h-[200px]">
+                  <p className="text-sm leading-relaxed">
+                    {(() => {
+                      const fillerWords = ['um', 'uh', 'like', 'you know', 'so', 'well', 'actually', 'basically', 'kind of', 'sort of'];
+                      const words = transcription.text.split(/(\s+)/);
+                      return words.map((word, index) => {
+                        const cleanWord = word.toLowerCase().replace(/[.,!?;:]/g, '');
+                        if (fillerWords.includes(cleanWord)) {
+                          return (
+                            <span
+                              key={index}
+                              className="bg-yellow-200 dark:bg-yellow-900/50 px-1 rounded"
+                            >
+                              {word}
+                            </span>
+                          );
+                        }
+                        return <span key={index}>{word}</span>;
+                      });
+                    })()}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Word Cloud Card */}
+            {(() => {
+              const fillerWords = ['um', 'uh', 'like', 'you know', 'so', 'well', 'actually', 'basically', 'kind of', 'sort of'];
+              const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them'];
+              const wordCount: Record<string, number> = {};
+              transcription.words.forEach((w) => {
+                const cleanWord = w.word.toLowerCase().replace(/[.,!?;:]/g, '');
+                if (cleanWord.length > 2 && !commonWords.includes(cleanWord) && !fillerWords.includes(cleanWord)) {
+                  wordCount[cleanWord] = (wordCount[cleanWord] || 0) + 1;
+                }
+              });
+              const mostUsedWords = Object.entries(wordCount)
+                .map(([word, count]) => ({ word, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 10);
+              
+              return mostUsedWords.length > 0 ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Most Used Words</CardTitle>
+                    <CardDescription>Key vocabulary from your speech</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                      {mostUsedWords.map(({ word, count }) => (
+                        <Badge
+                          key={word}
+                          variant="secondary"
+                          className="text-sm py-1 px-2"
+                        >
+                          {word} ({count})
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null;
+            })()}
+          </div>
+        )}
+
+        {/* Strengths Card - What Went Well */}
+        {feedback && (() => {
+          const strengths = extractStrengths(feedback);
+          return strengths.length > 0 ? (
+            <Card className="border-green-200 dark:border-green-800">
+              <CardHeader>
+                <CardTitle>What Went Well</CardTitle>
+                <CardDescription>Your key strengths from this session</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {strengths.map((strength, index) => (
+                    <div key={index} className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-md">
+                      <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                      <span className="text-sm font-medium">{strength}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : null;
+        })()}
 
         {/* Sector Analysis - Use BusinessPresentationFeedback for business-presentation scenario */}
         {feedback && feedback.sectorScores && (
