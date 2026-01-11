@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { getContentType } from '@/lib/utils';
 
 /**
  * Route handler for /uploads/ paths (backward compatibility)
@@ -33,18 +34,6 @@ export async function GET(
       console.error(`[Uploads Route] File not found: ${filePath}`);
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
-
-    // Determine Content-Type based on file extension
-    const getContentType = (filename: string): string => {
-      const ext = filename.toLowerCase().split('.').pop();
-      const mimeTypes: Record<string, string> = {
-        'mp4': 'video/mp4',
-        'webm': 'video/webm',
-        'mov': 'video/quicktime',
-        'avi': 'video/x-msvideo',
-      };
-      return mimeTypes[ext || ''] || 'application/octet-stream';
-    };
 
     const fileBuffer = await readFile(filePath);
     const contentType = getContentType(actualFilename);

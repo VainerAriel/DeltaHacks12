@@ -2,24 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { uploadVideoToS3 } from '@/lib/s3/upload';
 import { getDb, collections } from '@/lib/db/mongodb';
 import { ObjectId } from 'mongodb';
-import { getUserIdFromRequest } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { RecordingStatus } from '@/types/recording';
 import { getVideoDuration } from '@/lib/video-duration';
-import { isS3Configured } from '@/lib/s3/client';
-import { join } from 'path';
-import { mkdir, writeFile } from 'fs/promises';
 
 export async function POST(req: NextRequest) {
   try {
-    // Get user ID from JWT token
-    const userId = getUserIdFromRequest(req);
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Please log in.' },
-        { status: 401 }
-      );
+    // Check authentication
+    const authResult = requireAuth(req);
+    if ('error' in authResult) {
+      return authResult.error;
     }
+    const { userId } = authResult;
 
     const formData = await req.formData();
     const file = formData.get('video') as File;
@@ -64,66 +58,24 @@ export async function POST(req: NextRequest) {
     const extension = file.name.split('.').pop();
     const fileName = `${recordingId}.${extension}`;
 
-    // Upload to S3 first (required on Vercel) - we need videoUrl for VM service
+    // Upload to S3 (required on Vercel) - we need videoUrl for VM service
+    // uploadVideoToS3 handles S3 upload and local fallback automatically
     let videoUrl: string;
-    if (isS3Configured) {
-      try {
-        console.log('[Upload] Uploading to S3...');
-        videoUrl = await uploadVideoToS3(file, fileName);
-        console.log('[Upload] Successfully uploaded to S3:', videoUrl);
-      } catch (error) {
-        console.error('[Upload] S3 upload failed:', error);
-        // On Vercel, S3 is required - don't fallback
-        if (process.env.VERCEL) {
-          throw new Error('S3 upload failed. S3 storage is required on Vercel. Please check your AWS credentials.');
-        }
-        // Fallback to local storage only in development
-        console.log('[Upload] Falling back to local storage (dev mode only)...');
-        const uploadsDir = join(process.cwd(), 'public', 'uploads');
-        await mkdir(uploadsDir, { recursive: true });
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-        const filePath = join(uploadsDir, fileName);
-        await writeFile(filePath, buffer);
-        videoUrl = `/uploads/${fileName}`;
-      }
-    } else {
+    try {
+      console.log('[Upload] Uploading video...');
+      videoUrl = await uploadVideoToS3(file, fileName);
+      console.log('[Upload] Successfully uploaded:', videoUrl);
+    } catch (error) {
+      console.error('[Upload] Upload failed:', error);
       // On Vercel, S3 is required
       if (process.env.VERCEL) {
         return NextResponse.json(
-          { error: 'S3 storage is required on Vercel. Please configure AWS S3 credentials.' },
+          { error: 'S3 storage is required on Vercel. Please check your AWS credentials.' },
           { status: 500 }
         );
       }
-      // Local storage fallback (dev only)
-      const uploadsDir = join(process.cwd(), 'public', 'uploads');
-      try {
-        await mkdir(uploadsDir, { recursive: true });
-      } catch (err) {
-        // Directory might already exist
-      }
-
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      const filePath = join(uploadsDir, fileName);
-      
-      // Ensure directory exists
-      await mkdir(uploadsDir, { recursive: true });
-      
-      // Write file
-      await writeFile(filePath, buffer);
-      
-      // Verify file was written
-      const { existsSync } = await import('fs');
-      if (!existsSync(filePath)) {
-        throw new Error('Failed to save file to disk');
-      }
-      
-      console.log(`Video saved to: ${filePath}`);
-      console.log(`File size: ${buffer.length} bytes`);
-      
-      // Use /uploads/ path - will be served by app/uploads/[...path]/route.ts
-      videoUrl = `/uploads/${fileName}`;
+      // Re-throw error for local dev (uploadVideoToS3 should have handled fallback)
+      throw error;
     }
 
     // Extract video duration after upload (so we can use VM service with videoUrl)

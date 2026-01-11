@@ -7,15 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
 
-// Simple UUID generator
-function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
-
 interface RecordingInfo {
   recordingId: string;
   questionText: string;
@@ -27,7 +18,7 @@ function JobInterviewRecordContent() {
   const [questions, setQuestions] = useState<string[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [recordings, setRecordings] = useState<RecordingInfo[]>([]);
-  const [sessionId] = useState<string>(() => generateUUID());
+  const [sessionId] = useState<string>(() => crypto.randomUUID());
   const [currentRecordingId, setCurrentRecordingId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [hasRecorded, setHasRecorded] = useState(false);

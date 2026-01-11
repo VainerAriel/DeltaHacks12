@@ -1,20 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, collections } from '@/lib/db/mongodb';
-import { getUserIdFromRequest } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get user ID from JWT token
-    const userId = getUserIdFromRequest(request);
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Please log in.' },
-        { status: 401 }
-      );
+    // Check authentication
+    const authResult = requireAuth(request);
+    if ('error' in authResult) {
+      return authResult.error;
     }
+    const { userId } = authResult;
 
     let db;
     try {

@@ -1,15 +1,24 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { randomUUID } from "crypto"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
 /**
- * Generate a unique ID for recordings and other entities
- * Uses crypto.randomUUID() for a UUID v4 string
+ * Get Content-Type header based on file extension
+ * @param filename - The filename with extension
+ * @returns Content-Type string
  */
-export function generateId(): string {
-  return randomUUID()
+export function getContentType(filename: string): string {
+  const ext = filename.toLowerCase().split('.').pop();
+  const mimeTypes: Record<string, string> = {
+    'mp4': 'video/mp4',
+    'webm': 'video/webm',
+    'mov': 'video/quicktime',
+    'avi': 'video/x-msvideo',
+    'pdf': 'application/pdf',
+    'txt': 'text/plain',
+  };
+  return mimeTypes[ext || ''] || 'application/octet-stream';
 }
