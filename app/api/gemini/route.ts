@@ -70,8 +70,8 @@ export async function POST(request: NextRequest) {
 
     // Analyze presentation
     const feedbackReport = await analyzePresentation(
-      biometricData as BiometricData,
-      transcription as Transcription,
+      biometricData as unknown as BiometricData,
+      transcription as unknown as Transcription,
       scenario,
       questionText,
       duration

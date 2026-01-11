@@ -35,84 +35,7 @@ export default function FeedbackPage() {
   const [sessionRecordings, setSessionRecordings] = useState<(Recording & { feedback?: FeedbackReport })[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
-  const fetchFeedbackData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch recording
-      const recordingRes = await fetch(`/api/recordings/${recordingId}`);
-      if (!recordingRes.ok) throw new Error('Failed to fetch recording');
-      const recordingData = await recordingRes.json();
-      setRecording(recordingData);
-      
-      // Generate presigned URL if it's an S3 URL
-      if (recordingData.videoUrl) {
-        try {
-          const presignedRes = await fetch('/api/videos/presigned', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ videoUrl: recordingData.videoUrl }),
-          });
-          if (presignedRes.ok) {
-            const { presignedUrl } = await presignedRes.json();
-            setVideoUrl(presignedUrl);
-          } else {
-            // Fallback to original URL if presigned URL generation fails
-            setVideoUrl(recordingData.videoUrl);
-          }
-        } catch (error) {
-          console.error('Failed to get presigned URL:', error);
-          setVideoUrl(recordingData.videoUrl);
-        }
-      }
-
-      // Check if this is part of a session
-      if (recordingData.sessionId) {
-        setIsSessionMode(true);
-        // Fetch all recordings in the session
-        const sessionRes = await fetch(`/api/recordings/session/${recordingData.sessionId}`);
-        if (sessionRes.ok) {
-          const sessionData = await sessionRes.json();
-          setSessionRecordings(sessionData);
-          
-          // Find the index of the current recording
-          const currentIndex = sessionData.findIndex((r: Recording) => r.id === recordingId);
-          if (currentIndex !== -1) {
-            setCurrentQuestionIndex(currentIndex);
-          }
-          
-          // Check if feedback exists in session data and set it immediately
-          const currentSessionRecording = sessionData.find((r: Recording & { feedback?: FeedbackReport }) => r.id === recordingId);
-          if (currentSessionRecording?.feedback) {
-            setFeedback(currentSessionRecording.feedback);
-          }
-          
-          // Load data for the current recording
-          await loadRecordingData(recordingId, recordingData.questionText ? 'job-interview' : undefined, sessionData);
-        } else {
-          // Fallback to single recording mode
-          setIsSessionMode(false);
-          await loadRecordingData(recordingId, recordingData.questionText ? 'job-interview' : undefined);
-        }
-      } else {
-        // Single recording mode
-        setIsSessionMode(false);
-        await loadRecordingData(recordingId, recordingData.questionText ? 'job-interview' : undefined);
-      }
-    } catch (err) {
-      console.error('Error fetching feedback data:', err);
-      setError('Failed to load feedback data');
-    } finally {
-      setLoading(false);
-    }
-  }, [recordingId]);
-
-  useEffect(() => {
-    fetchFeedbackData();
-  }, [fetchFeedbackData]);
-
-  const loadRecordingData = async (recId: string, scenarioOverride?: string, sessionDataOverride?: (Recording & { feedback?: FeedbackReport })[]) => {
+  const loadRecordingData = useCallback(async (recId: string, scenarioOverride?: string, sessionDataOverride?: (Recording & { feedback?: FeedbackReport })[]) => {
     // Fetch biometric data
     const biometricRes = await fetch(`/api/biometrics/${recId}`);
     if (biometricRes.ok) {
@@ -189,7 +112,84 @@ export default function FeedbackPage() {
         setProcessingError('Failed to process recording. Please try again later.');
       }
     }
-  };
+  }, [isSessionMode, sessionRecordings, recording]);
+
+  const fetchFeedbackData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch recording
+      const recordingRes = await fetch(`/api/recordings/${recordingId}`);
+      if (!recordingRes.ok) throw new Error('Failed to fetch recording');
+      const recordingData = await recordingRes.json();
+      setRecording(recordingData);
+      
+      // Generate presigned URL if it's an S3 URL
+      if (recordingData.videoUrl) {
+        try {
+          const presignedRes = await fetch('/api/videos/presigned', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ videoUrl: recordingData.videoUrl }),
+          });
+          if (presignedRes.ok) {
+            const { presignedUrl } = await presignedRes.json();
+            setVideoUrl(presignedUrl);
+          } else {
+            // Fallback to original URL if presigned URL generation fails
+            setVideoUrl(recordingData.videoUrl);
+          }
+        } catch (error) {
+          console.error('Failed to get presigned URL:', error);
+          setVideoUrl(recordingData.videoUrl);
+        }
+      }
+
+      // Check if this is part of a session
+      if (recordingData.sessionId) {
+        setIsSessionMode(true);
+        // Fetch all recordings in the session
+        const sessionRes = await fetch(`/api/recordings/session/${recordingData.sessionId}`);
+        if (sessionRes.ok) {
+          const sessionData = await sessionRes.json();
+          setSessionRecordings(sessionData);
+          
+          // Find the index of the current recording
+          const currentIndex = sessionData.findIndex((r: Recording) => r.id === recordingId);
+          if (currentIndex !== -1) {
+            setCurrentQuestionIndex(currentIndex);
+          }
+          
+          // Check if feedback exists in session data and set it immediately
+          const currentSessionRecording = sessionData.find((r: Recording & { feedback?: FeedbackReport }) => r.id === recordingId);
+          if (currentSessionRecording?.feedback) {
+            setFeedback(currentSessionRecording.feedback);
+          }
+          
+          // Load data for the current recording
+          await loadRecordingData(recordingId, recordingData.questionText ? 'job-interview' : undefined, sessionData);
+        } else {
+          // Fallback to single recording mode
+          setIsSessionMode(false);
+          await loadRecordingData(recordingId, recordingData.questionText ? 'job-interview' : undefined);
+        }
+      } else {
+        // Single recording mode
+        setIsSessionMode(false);
+        await loadRecordingData(recordingId, recordingData.questionText ? 'job-interview' : undefined);
+      }
+    } catch (err) {
+      console.error('Error fetching feedback data:', err);
+      setError('Failed to load feedback data');
+    } finally {
+      setLoading(false);
+    }
+  }, [recordingId, loadRecordingData]);
+
+  useEffect(() => {
+    fetchFeedbackData();
+  }, [fetchFeedbackData]);
 
   const switchToQuestion = async (index: number) => {
     if (index < 0 || index >= sessionRecordings.length) return;
