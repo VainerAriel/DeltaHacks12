@@ -12,6 +12,7 @@ import SectorAnalysis from '@/components/feedback/SectorAnalysis';
 import { FeedbackReport } from '@/types/feedback';
 import { BiometricData } from '@/types/biometrics';
 import { Transcription } from '@/types/transcription';
+import { Recording, RecordingStatus } from '@/types/recording';
 import { Recording } from '@/types/recording';
 import { Loader2, ArrowLeft, RotateCcw, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -34,6 +35,11 @@ export default function FeedbackPage() {
   const [isSessionMode, setIsSessionMode] = useState(false);
   const [sessionRecordings, setSessionRecordings] = useState<(Recording & { feedback?: FeedbackReport })[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+
+  // Track retry attempts to prevent infinite loops
+  const retryCountRef = useRef<number>(0);
+  const maxRetries = 20; // Maximum 20 retries (about 1 minute with 3s intervals)
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const loadRecordingData = useCallback(async (recId: string, scenarioOverride?: string, sessionDataOverride?: (Recording & { feedback?: FeedbackReport })[]) => {
     // Fetch biometric data
@@ -103,7 +109,14 @@ export default function FeedbackPage() {
         
         // If biometrics and transcription succeeded but feedback wasn't generated yet, retry after delay
         if (processResult.biometrics && processResult.transcription && !processResult.feedback) {
-          setTimeout(() => loadRecordingData(recId, scenario, sessionDataOverride), 3000);
+          retryCountRef.current += 1;
+          if (retryCountRef.current >= maxRetries) {
+            setProcessingError('Processing is taking longer than expected. Please refresh the page or try again later.');
+            return;
+          }
+          pollingTimeoutRef.current = setTimeout(() => {
+            loadRecordingData(recId, scenario, sessionDataOverride);
+          }, 3000);
         } else if (!processResult.biometrics || !processResult.transcription) {
           setProcessingError('Failed to process recording data. Please try again later.');
         }
@@ -115,6 +128,9 @@ export default function FeedbackPage() {
   }, [isSessionMode, sessionRecordings, recording]);
 
   const fetchFeedbackData = useCallback(async () => {
+    // Prevent multiple simultaneous fetches
+    if (loading) return;
+    
     try {
       setLoading(true);
       setError(null);
@@ -124,6 +140,16 @@ export default function FeedbackPage() {
       if (!recordingRes.ok) throw new Error('Failed to fetch recording');
       const recordingData = await recordingRes.json();
       setRecording(recordingData);
+      
+      // Stop polling if recording is failed or complete (and we have feedback)
+      if (recordingData.status === RecordingStatus.FAILED || 
+          (recordingData.status === RecordingStatus.COMPLETE && feedback)) {
+        retryCountRef.current = 0; // Reset retry count
+        if (pollingTimeoutRef.current) {
+          clearTimeout(pollingTimeoutRef.current);
+          pollingTimeoutRef.current = null;
+        }
+      }
       
       // Generate presigned URL if it's an S3 URL
       if (recordingData.videoUrl) {
@@ -188,8 +214,20 @@ export default function FeedbackPage() {
   }, [recordingId, loadRecordingData]);
 
   useEffect(() => {
+    // Reset retry count when recording ID changes
+    retryCountRef.current = 0;
+    
     fetchFeedbackData();
-  }, [fetchFeedbackData]);
+    
+    // Cleanup: clear any pending polling timeouts
+    return () => {
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current);
+        pollingTimeoutRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recordingId]); // Only depend on recordingId, not fetchFeedbackData
 
   const switchToQuestion = async (index: number) => {
     if (index < 0 || index >= sessionRecordings.length) return;
