@@ -23,10 +23,17 @@ export async function GET(
 
     // Convert MongoDB document to our Recording type
     const { _id, ...rest } = recording;
-    return NextResponse.json({
-      id: _id.toString(),
-      ...rest,
-    });
+    return NextResponse.json(
+      {
+        id: _id.toString(),
+        ...rest,
+      },
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=60', // Cache for 1 minute
+        },
+      }
+    );
   } catch (error) {
     console.error('Error fetching recording:', error);
     return NextResponse.json(

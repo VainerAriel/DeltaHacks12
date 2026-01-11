@@ -51,8 +51,8 @@ export default function DashboardPage() {
   }, [router]);
 
   useEffect(() => {
-    fetchUser();
-    fetchRecordings();
+    // Fetch user and recordings in parallel for better performance
+    Promise.all([fetchUser(), fetchRecordings()]);
   }, [fetchUser, fetchRecordings]);
 
   const handleLogout = async () => {

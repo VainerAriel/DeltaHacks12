@@ -147,59 +147,65 @@ export default function FeedbackPage() {
         }
       }
       
-      // Generate presigned URL if it's an S3 URL
+      // Generate presigned URL and fetch session data in parallel for better performance
+      const promises: Promise<any>[] = [];
+      
       if (recordingData.videoUrl) {
-        try {
-          const presignedRes = await fetch('/api/videos/presigned', {
+        promises.push(
+          fetch('/api/videos/presigned', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ videoUrl: recordingData.videoUrl }),
-          });
-          if (presignedRes.ok) {
-            const { presignedUrl } = await presignedRes.json();
-            setVideoUrl(presignedUrl);
-          } else {
-            // Fallback to original URL if presigned URL generation fails
-            setVideoUrl(recordingData.videoUrl);
-          }
-        } catch (error) {
-          console.error('Failed to get presigned URL:', error);
-          setVideoUrl(recordingData.videoUrl);
-        }
+          }).then(res => res.ok ? res.json() : null).catch(() => null)
+        );
+      } else {
+        promises.push(Promise.resolve(null));
       }
 
       // Check if this is part of a session
       if (recordingData.sessionId) {
         console.log('[FeedbackPage] Recording has sessionId:', recordingData.sessionId);
         setIsSessionMode(true);
-        // Fetch all recordings in the session
-        const sessionRes = await fetch(`/api/recordings/session/${recordingData.sessionId}`);
-        if (sessionRes.ok) {
-          const sessionData = await sessionRes.json();
-          console.log('[FeedbackPage] Session data loaded:', sessionData.length, 'recordings');
-          setSessionRecordings(sessionData);
-          
-          // Find the index of the current recording
-          const currentIndex = sessionData.findIndex((r: Recording) => r.id === recordingId);
-          console.log('[FeedbackPage] Current recording index:', currentIndex, 'out of', sessionData.length);
-          if (currentIndex !== -1) {
-            setCurrentQuestionIndex(currentIndex);
-          }
-          
-          // Check if feedback exists in session data and set it immediately
-          const currentSessionRecording = sessionData.find((r: Recording & { feedback?: FeedbackReport }) => r.id === recordingId);
-          if (currentSessionRecording?.feedback) {
-            feedbackRef.current = currentSessionRecording.feedback;
-            setFeedback(currentSessionRecording.feedback);
-          }
-          
-          // Load data for the current recording
-          await loadRecordingData(recordingId, recordingData.questionText ? 'job-interview' : undefined, sessionData);
-        } else {
-          // Fallback to single recording mode
-          setIsSessionMode(false);
-          await loadRecordingData(recordingId, recordingData.questionText ? 'job-interview' : undefined);
+        promises.push(fetch(`/api/recordings/session/${recordingData.sessionId}`));
+      } else {
+        promises.push(Promise.resolve(null));
+      }
+
+      const [presignedResult, sessionRes] = await Promise.all(promises);
+      
+      // Handle presigned URL result
+      if (presignedResult?.presignedUrl) {
+        setVideoUrl(presignedResult.presignedUrl);
+      } else if (recordingData.videoUrl) {
+        setVideoUrl(recordingData.videoUrl);
+      }
+
+      // Handle session data
+      if (recordingData.sessionId && sessionRes && sessionRes.ok) {
+        const sessionData = await sessionRes.json();
+        console.log('[FeedbackPage] Session data loaded:', sessionData.length, 'recordings');
+        setSessionRecordings(sessionData);
+        
+        // Find the index of the current recording
+        const currentIndex = sessionData.findIndex((r: Recording) => r.id === recordingId);
+        console.log('[FeedbackPage] Current recording index:', currentIndex, 'out of', sessionData.length);
+        if (currentIndex !== -1) {
+          setCurrentQuestionIndex(currentIndex);
         }
+        
+        // Check if feedback exists in session data and set it immediately
+        const currentSessionRecording = sessionData.find((r: Recording & { feedback?: FeedbackReport }) => r.id === recordingId);
+        if (currentSessionRecording?.feedback) {
+          feedbackRef.current = currentSessionRecording.feedback;
+          setFeedback(currentSessionRecording.feedback);
+        }
+        
+        // Load data for the current recording
+        await loadRecordingData(recordingId, recordingData.questionText ? 'job-interview' : undefined, sessionData);
+      } else if (recordingData.sessionId) {
+        // Fallback to single recording mode if session fetch failed
+        setIsSessionMode(false);
+        await loadRecordingData(recordingId, recordingData.questionText ? 'job-interview' : undefined);
       } else {
         // Single recording mode
         setIsSessionMode(false);

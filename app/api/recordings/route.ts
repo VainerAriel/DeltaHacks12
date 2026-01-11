@@ -27,11 +27,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch recordings for user
+    // Fetch recordings for user with limit for better performance
     const recordings = await db
       .collection(collections.recordings)
       .find({ userId })
       .sort({ createdAt: -1 })
+      .limit(100) // Limit to 100 most recent recordings
       .toArray();
 
     // Optimize: Fetch all feedback reports in a single query instead of N queries
@@ -61,7 +62,11 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json(recordingsWithFeedback);
+    return NextResponse.json(recordingsWithFeedback, {
+      headers: {
+        'Cache-Control': 'private, max-age=30', // Cache for 30 seconds
+      },
+    });
   } catch (error) {
     console.error('Error fetching recordings:', error);
     return NextResponse.json(

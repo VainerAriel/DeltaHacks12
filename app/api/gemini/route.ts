@@ -53,27 +53,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update status to analyzing
-    await db.collection(collections.recordings).updateOne(
-      { _id: new ObjectId(recordingId) },
-      { $set: { status: RecordingStatus.ANALYZING } }
-    );
-
     // Get questionText and duration from recording if available
     const questionText = recording?.questionText;
     const duration = recording?.duration || 0;
     
-    // Fetch reference document if available
+    // Update status to analyzing and fetch reference document in parallel
+    const [_, referenceDoc] = await Promise.all([
+      db.collection(collections.recordings).updateOne(
+        { _id: new ObjectId(recordingId) },
+        { $set: { status: RecordingStatus.ANALYZING } }
+      ),
+      recording?.referenceDocumentId
+        ? db.collection(collections.referenceDocuments).findOne({
+            _id: new ObjectId(recording.referenceDocumentId),
+          })
+        : Promise.resolve(null),
+    ]);
+    
     let referenceContent: string | undefined;
     let referenceType: 'slides' | 'script' | undefined;
-    if (recording?.referenceDocumentId) {
-      const referenceDoc = await db.collection(collections.referenceDocuments).findOne({
-        _id: new ObjectId(recording.referenceDocumentId),
-      });
-      if (referenceDoc) {
-        referenceContent = referenceDoc.extractedContent;
-        referenceType = referenceDoc.type;
-      }
+    if (referenceDoc) {
+      referenceContent = referenceDoc.extractedContent;
+      referenceType = referenceDoc.type;
     }
 
     // Get duration constraints and actual duration from recording
