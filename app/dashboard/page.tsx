@@ -324,7 +324,7 @@ export default function DashboardPage() {
                               </p>
                               {isSession && recording.questionText && (
                                 <p className="text-sm text-muted-foreground mt-1 italic">
-                                  "{recording.questionText}"
+                                  &ldquo;{recording.questionText}&rdquo;
                                 </p>
                               )}
                               <div className="flex items-center gap-2 mt-2">
