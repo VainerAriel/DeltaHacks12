@@ -16,7 +16,11 @@ export async function POST(request: NextRequest) {
     console.log('[Upload] Parsing form data...');
     const formData = await request.formData();
     const videoFile = formData.get('video') as File;
+    const sessionId = formData.get('sessionId') as string | null;
+    const questionText = formData.get('questionText') as string | null;
     console.log('[Upload] Video file received:', videoFile ? `Size: ${videoFile.size} bytes, Type: ${videoFile.type}` : 'null');
+    console.log('[Upload] Session ID:', sessionId || 'none');
+    console.log('[Upload] Question text:', questionText || 'none');
 
     if (!videoFile) {
       return NextResponse.json(
@@ -148,6 +152,8 @@ export async function POST(request: NextRequest) {
       duration,
       status: RecordingStatus.UPLOADING,
       createdAt: new Date(),
+      ...(sessionId && { sessionId }),
+      ...(questionText && { questionText }),
     };
 
     await db.collection(collections.recordings).insertOne({

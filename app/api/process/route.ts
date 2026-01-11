@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { recordingId } = body;
+    const { recordingId, scenario } = body;
 
     if (!recordingId) {
       return NextResponse.json(
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         const geminiResponse = await fetch(`${request.nextUrl.origin}/api/gemini`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ recordingId }),
+          body: JSON.stringify({ recordingId, scenario }),
         });
         if (geminiResponse.ok) {
           results.feedback = await geminiResponse.json();

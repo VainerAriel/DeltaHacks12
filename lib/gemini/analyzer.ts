@@ -15,11 +15,15 @@ const genAI = process.env.GOOGLE_GEMINI_API_KEY
  * Analyze presentation using Google Gemini API
  * @param biometricData - Biometric data from Presage
  * @param transcription - Transcription data from ElevenLabs
+ * @param scenario - Optional scenario type (e.g., 'job-interview')
+ * @param questionText - Optional question text (for job interview scenarios)
  * @returns Structured feedback report
  */
 export async function analyzePresentation(
   biometricData: BiometricData,
-  transcription: Transcription
+  transcription: Transcription,
+  scenario?: string,
+  questionText?: string
 ): Promise<FeedbackReport> {
   if (!genAI) {
     throw new Error('GOOGLE_GEMINI_API_KEY is required but not set. Please configure it in your .env.local file.');
@@ -34,7 +38,59 @@ export async function analyzePresentation(
     : 12; // Default breathing rate if no data
   const expressions = biometricData.facialExpressions.map(e => e.expression);
 
-  const prompt = `You are analyzing a public speaking practice session for an ESL learner.
+  // Build prompt based on scenario
+  let prompt: string;
+  
+  if (scenario === 'job-interview' && questionText) {
+    prompt = `You are analyzing a job interview practice session. The candidate answered a behavioral interview question.
+
+Interview Question: "${questionText}"
+
+Biometric Data:
+- Average Heart Rate: ${avgHeartRate.toFixed(1)} bpm
+- Average Breathing Rate: ${avgBreathing.toFixed(1)} breaths/min
+- Facial Expressions: ${expressions.join(', ')}
+
+Speech Data:
+- Words Per Minute: ${transcription.metrics.wpm}
+- Filler Words Count: ${transcription.metrics.fillerWordsCount}
+- Longest Pause: ${transcription.metrics.longestPause}s
+- Transcription: "${transcription.text}"
+
+Provide structured feedback on:
+1) Physical confidence indicators (heart rate, breathing, facial expressions) - assess interview presence
+2) Speech quality (pace, clarity, filler words, pauses) - important for clear communication
+3) Answer structure and content quality - how well they answered the behavioral question using STAR method
+4) Interview-specific recommendations (confidence, clarity, structure, professionalism)
+
+Format your response as JSON with this exact structure:
+{
+  "overallScore": <number 1-100>,
+  "biometricInsights": {
+    "heartRateAnalysis": "<string>",
+    "breathingPattern": "<string>",
+    "facialExpressionNotes": "<string>"
+  },
+  "speechInsights": {
+    "wpm": ${transcription.metrics.wpm},
+    "fillerWordsCount": ${transcription.metrics.fillerWordsCount},
+    "pauseAnalysis": "<string>",
+    "clarityScore": <number 1-100>,
+    "pronunciationNotes": "<string>"
+  },
+  "recommendations": [
+    {
+      "category": "<physical|speech|content|general>",
+      "title": "<string>",
+      "description": "<string>",
+      "priority": "<high|medium|low>"
+    }
+  ]
+}
+
+Only return the JSON, no additional text.`;
+  } else {
+    prompt = `You are analyzing a public speaking practice session for an ESL learner.
 
 Biometric Data:
 - Average Heart Rate: ${avgHeartRate.toFixed(1)} bpm
@@ -79,6 +135,7 @@ Format your response as JSON with this exact structure:
 }
 
 Only return the JSON, no additional text.`;
+  }
 
   // Try different model names in order of preference
   const modelNames = process.env.GEMINI_MODEL_NAME 
