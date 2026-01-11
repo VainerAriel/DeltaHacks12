@@ -3,6 +3,8 @@ import { getAuthFromRequest } from '@/lib/auth';
 import { getDb, collections } from '@/lib/db/mongodb';
 import { ObjectId } from 'mongodb';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Get user info from JWT token

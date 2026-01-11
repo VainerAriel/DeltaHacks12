@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import VideoRecorder from '@/components/recording/VideoRecorder';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +21,7 @@ interface RecordingInfo {
   questionText: string;
 }
 
-export default function JobInterviewRecordPage() {
+function JobInterviewRecordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [questions, setQuestions] = useState<string[]>([]);
@@ -291,5 +291,17 @@ export default function JobInterviewRecordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function JobInterviewRecordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    }>
+      <JobInterviewRecordContent />
+    </Suspense>
   );
 }
