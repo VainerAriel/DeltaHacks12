@@ -94,7 +94,7 @@ export default function DashboardPage() {
       [RecordingStatus.FAILED]: { label: 'Failed', variant: 'destructive' },
     };
 
-    const config = variants[status];
+    const config = variants[status] || { label: String(status), variant: 'outline' as const };
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 

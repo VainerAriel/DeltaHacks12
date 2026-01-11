@@ -570,27 +570,29 @@ export default function FeedbackPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {feedback.recommendations.map((rec, index) => (
+                {(feedback.recommendations || []).filter(rec => rec != null).map((rec, index) => (
                   <Card key={index} className="border-l-4 border-l-primary">
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between mb-2">
-                        <h3 className="font-semibold">{rec.title}</h3>
+                        <h3 className="font-semibold">{rec?.title || 'Recommendation'}</h3>
                         <Badge
                           variant={
-                            rec.priority === 'high'
+                            rec?.priority === 'high'
                               ? 'destructive'
-                              : rec.priority === 'medium'
+                              : rec?.priority === 'medium'
                               ? 'default'
                               : 'secondary'
                           }
                         >
-                          {rec.priority}
+                          {rec?.priority || 'medium'}
                         </Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground">{rec.description}</p>
-                      <Badge variant="outline" className="mt-2">
-                        {rec.category}
-                      </Badge>
+                      <p className="text-sm text-muted-foreground">{rec?.description || ''}</p>
+                      {rec?.category && (
+                        <Badge variant="outline" className="mt-2">
+                          {rec.category}
+                        </Badge>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
