@@ -13,7 +13,6 @@ import { FeedbackReport } from '@/types/feedback';
 import { BiometricData } from '@/types/biometrics';
 import { Transcription } from '@/types/transcription';
 import { Recording, RecordingStatus } from '@/types/recording';
-import { Recording } from '@/types/recording';
 import { Loader2, ArrowLeft, RotateCcw, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function FeedbackPage() {
@@ -40,6 +39,8 @@ export default function FeedbackPage() {
   const retryCountRef = useRef<number>(0);
   const maxRetries = 20; // Maximum 20 retries (about 1 minute with 3s intervals)
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isLoadingRef = useRef<boolean>(false);
+  const feedbackRef = useRef<FeedbackReport | null>(null);
 
   const loadRecordingData = useCallback(async (recId: string, scenarioOverride?: string, sessionDataOverride?: (Recording & { feedback?: FeedbackReport })[]) => {
     // Fetch biometric data
@@ -62,6 +63,7 @@ export default function FeedbackPage() {
     if (isSessionMode && recordingsToCheck.length > 0) {
       const sessionRecording = recordingsToCheck.find(r => r.id === recId);
       if (sessionRecording?.feedback) {
+        feedbackRef.current = sessionRecording.feedback;
         setFeedback(sessionRecording.feedback);
         return; // Feedback found in session recordings, no need to fetch
       }
@@ -71,6 +73,7 @@ export default function FeedbackPage() {
     const feedbackRes = await fetch(`/api/feedback/${recId}`);
     if (feedbackRes.ok) {
       const feedbackData = await feedbackRes.json();
+      feedbackRef.current = feedbackData;
       setFeedback(feedbackData);
       setProcessingError(null); // Clear any previous processing errors
     } else {
@@ -91,6 +94,7 @@ export default function FeedbackPage() {
         // Check if feedback was successfully generated
         if (processResult.feedback) {
           // Feedback was generated, set it and clear any errors
+          feedbackRef.current = processResult.feedback;
           setFeedback(processResult.feedback);
           setProcessingError(null);
           return;
@@ -129,9 +133,10 @@ export default function FeedbackPage() {
 
   const fetchFeedbackData = useCallback(async () => {
     // Prevent multiple simultaneous fetches
-    if (loading) return;
+    if (isLoadingRef.current) return;
     
     try {
+      isLoadingRef.current = true;
       setLoading(true);
       setError(null);
 
@@ -143,7 +148,7 @@ export default function FeedbackPage() {
       
       // Stop polling if recording is failed or complete (and we have feedback)
       if (recordingData.status === RecordingStatus.FAILED || 
-          (recordingData.status === RecordingStatus.COMPLETE && feedback)) {
+          (recordingData.status === RecordingStatus.COMPLETE && feedbackRef.current)) {
         retryCountRef.current = 0; // Reset retry count
         if (pollingTimeoutRef.current) {
           clearTimeout(pollingTimeoutRef.current);
@@ -190,6 +195,7 @@ export default function FeedbackPage() {
           // Check if feedback exists in session data and set it immediately
           const currentSessionRecording = sessionData.find((r: Recording & { feedback?: FeedbackReport }) => r.id === recordingId);
           if (currentSessionRecording?.feedback) {
+            feedbackRef.current = currentSessionRecording.feedback;
             setFeedback(currentSessionRecording.feedback);
           }
           
@@ -209,6 +215,7 @@ export default function FeedbackPage() {
       console.error('Error fetching feedback data:', err);
       setError('Failed to load feedback data');
     } finally {
+      isLoadingRef.current = false;
       setLoading(false);
     }
   }, [recordingId, loadRecordingData]);
@@ -258,6 +265,7 @@ export default function FeedbackPage() {
     
     // If feedback is already in the session recording, set it immediately
     if (targetRecording.feedback) {
+      feedbackRef.current = targetRecording.feedback;
       setFeedback(targetRecording.feedback);
     }
     
