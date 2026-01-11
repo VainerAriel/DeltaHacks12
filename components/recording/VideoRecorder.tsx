@@ -12,9 +12,12 @@ interface VideoRecorderProps {
   sessionId?: string;
   questionText?: string;
   maxDuration?: number; // Maximum recording duration in seconds
+  minDuration?: number; // Minimum recording duration in seconds
+  onDurationCheck?: (duration: number) => { isValid: boolean; feedback?: string };
+  referenceDocumentId?: string;
 }
 
-export default function VideoRecorder({ onRecordingComplete, onUploadComplete, sessionId, questionText, maxDuration }: VideoRecorderProps) {
+export default function VideoRecorder({ onRecordingComplete, onUploadComplete, sessionId, questionText, maxDuration, minDuration, onDurationCheck, referenceDocumentId }: VideoRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordedTime, setRecordedTime] = useState(0);
@@ -244,12 +247,21 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete, s
       const fileName = file instanceof File ? file.name : 'recording.webm';
       formData.append('video', file, fileName);
       
-      // Add sessionId and questionText if provided
+      // Add sessionId, questionText, duration constraints, and reference document if provided
       if (sessionId) {
         formData.append('sessionId', sessionId);
       }
       if (questionText) {
         formData.append('questionText', questionText);
+      }
+      if (referenceDocumentId) {
+        formData.append('referenceDocumentId', referenceDocumentId);
+      }
+      if (minDuration !== undefined) {
+        formData.append('minDuration', minDuration.toString());
+      }
+      if (maxDuration !== undefined) {
+        formData.append('maxDuration', maxDuration.toString());
       }
 
       const xhr = new XMLHttpRequest();
@@ -306,7 +318,7 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete, s
     } finally {
       setIsUploading(false);
     }
-  }, [onUploadComplete, sessionId, questionText]);
+  }, [onUploadComplete, sessionId, questionText, referenceDocumentId, minDuration, maxDuration]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);

@@ -86,4 +86,5 @@ export const collections = {
   biometricData: 'biometricData',
   transcriptions: 'transcriptions',
   feedbackReports: 'feedbackReports',
+  referenceDocuments: 'referenceDocuments',
 } as const;

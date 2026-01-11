@@ -65,7 +65,12 @@ function buildPrompt(
   transcription: Transcription,
   duration: number,
   scenario?: string,
-  questionText?: string
+  questionText?: string,
+  referenceContent?: string,
+  referenceType?: 'slides' | 'script',
+  minDuration?: number,
+  maxDuration?: number,
+  actualDuration?: number
 ): string {
   // Calculate average metrics
   const avgHeartRate = biometricData.heartRate.length > 0
@@ -98,8 +103,43 @@ Speech Data:
 ${dataSection}`;
   }
 
+  // Build reference comparison section if available
+  let referenceSection = '';
+  if (referenceContent && referenceType) {
+    referenceSection = `
+
+Reference ${referenceType === 'slides' ? 'Slide Deck' : 'Script'}:
+"${referenceContent.substring(0, 5000)}"${referenceContent.length > 5000 ? '...' : ''}
+
+IMPORTANT: Compare the presentation to the provided ${referenceType === 'slides' ? 'slide deck' : 'script'}.
+Evaluate how well the presenter follows the ${referenceType === 'slides' ? 'slides' : 'script'}.
+Note any deviations, missed points, or areas where they could better align with the reference material.
+Include this comparison in your analysis.`;
+  }
+  
+  // Build duration feedback section if constraints provided
+  let durationSection = '';
+  if (actualDuration !== undefined && (minDuration !== undefined || maxDuration !== undefined)) {
+    const tooShort = minDuration !== undefined && actualDuration < minDuration;
+    const tooLong = maxDuration !== undefined && actualDuration > maxDuration;
+    
+    if (tooShort || tooLong) {
+      durationSection = `
+
+Duration Analysis:
+- Actual Duration: ${actualDuration} seconds
+- Target Duration: ${minDuration !== undefined ? `Minimum: ${minDuration}s` : ''}${minDuration !== undefined && maxDuration !== undefined ? ', ' : ''}${maxDuration !== undefined ? `Maximum: ${maxDuration}s` : ''}
+- Status: ${tooShort ? 'TOO SHORT' : tooLong ? 'TOO LONG' : 'WITHIN RANGE'}
+
+Provide specific feedback on how to adjust the presentation length:
+${tooShort ? '- Suggest what content to expand or add to meet the minimum duration' : ''}
+${tooLong ? '- Suggest what content to trim or cut to meet the maximum duration' : ''}
+Include duration-related recommendations in your response.`;
+    }
+  }
+
   // Start with data section, then base prompt
-  let prompt = dataSection + basePrompt;
+  let prompt = dataSection + referenceSection + durationSection + basePrompt;
 
   // Update video duration references in the prompt
   prompt = prompt.replace(/up to the video duration/g, `up to ${duration} seconds (timestamp: 0, 1, 2, 3, ... up to ${duration})`);
@@ -131,6 +171,11 @@ ${dataSection}`;
  * @param scenario - Optional scenario type (e.g., 'job-interview', 'elevator-pitch', 'business-presentation')
  * @param questionText - Optional question text (for job interview scenarios)
  * @param duration - Video duration in seconds
+ * @param referenceContent - Optional reference content (slides/script text)
+ * @param referenceType - Optional reference type ('slides' or 'script')
+ * @param minDuration - Optional minimum duration in seconds
+ * @param maxDuration - Optional maximum duration in seconds
+ * @param actualDuration - Optional actual duration in seconds
  * @returns Structured feedback report
  */
 export async function analyzePresentation(
@@ -138,20 +183,37 @@ export async function analyzePresentation(
   transcription: Transcription,
   scenario?: string,
   questionText?: string,
-  duration?: number
+  duration?: number,
+  referenceContent?: string,
+  referenceType?: 'slides' | 'script',
+  minDuration?: number,
+  maxDuration?: number,
+  actualDuration?: number
 ): Promise<FeedbackReport> {
   if (!genAI) {
     throw new Error('GOOGLE_GEMINI_API_KEY is required but not set. Please configure it in your .env.local file.');
   }
 
   // Use duration from recording, or estimate from transcription if not provided
-  const videoDuration = duration || Math.max(30, Math.ceil(transcription.text.length / 10)); // Rough estimate: 10 chars per second
+  const videoDuration = duration || actualDuration || Math.max(30, Math.ceil(transcription.text.length / 10)); // Rough estimate: 10 chars per second
 
   // Load base prompt
   const basePrompt = loadBasePrompt();
 
   // Build complete prompt
-  const prompt = buildPrompt(basePrompt, biometricData, transcription, videoDuration, scenario, questionText);
+  const prompt = buildPrompt(
+    basePrompt,
+    biometricData,
+    transcription,
+    videoDuration,
+    scenario,
+    questionText,
+    referenceContent,
+    referenceType,
+    minDuration,
+    maxDuration,
+    actualDuration
+  );
 
   // Try different model names in order of preference
   const modelNames = process.env.GEMINI_MODEL_NAME 
@@ -296,6 +358,53 @@ export async function analyzePresentation(
             recommendations: parsed.recommendations || [],
             createdAt: new Date(),
           };
+
+          // Generate duration feedback if needed
+          if (actualDuration !== undefined && (minDuration !== undefined || maxDuration !== undefined)) {
+            const tooShort = minDuration !== undefined && actualDuration < minDuration;
+            const tooLong = maxDuration !== undefined && actualDuration > maxDuration;
+            
+            if (tooShort || tooLong) {
+              let feedbackText = '';
+              if (tooShort) {
+                feedbackText = `Your presentation is ${minDuration - actualDuration} seconds too short. Consider expanding on key points, adding examples, or providing more detail to meet the minimum duration of ${minDuration} seconds.`;
+              } else if (tooLong) {
+                feedbackText = `Your presentation is ${actualDuration - maxDuration} seconds too long. Consider trimming less essential content, speaking more concisely, or cutting redundant points to meet the maximum duration of ${maxDuration} seconds.`;
+              }
+              
+              feedbackReport.durationFeedback = {
+                actual: actualDuration,
+                target: {
+                  ...(minDuration !== undefined && { min: minDuration }),
+                  ...(maxDuration !== undefined && { max: maxDuration }),
+                },
+                feedback: feedbackText,
+              };
+            }
+          }
+          
+          // Generate reference adherence feedback if reference content exists
+          if (referenceContent && referenceType) {
+            // Extract reference adherence from parsed response if available
+            if (parsed.referenceAdherence) {
+              feedbackReport.referenceAdherence = parsed.referenceAdherence;
+            } else {
+              // Fallback: generate basic feedback from recommendations
+              const contentRecommendations = parsed.recommendations?.filter((r: any) => 
+                r.category === 'content' && 
+                (r.description?.toLowerCase().includes('reference') || 
+                 r.description?.toLowerCase().includes('slide') || 
+                 r.description?.toLowerCase().includes('script'))
+              ) || [];
+              
+              if (contentRecommendations.length > 0) {
+                feedbackReport.referenceAdherence = {
+                  score: 75, // Default score
+                  analysis: contentRecommendations.map((r: any) => r.description).join(' '),
+                };
+              }
+            }
+          }
 
           return feedbackReport;
         } catch (error: any) {

@@ -18,4 +18,8 @@ export interface Recording {
   thumbnailUrl?: string;
   sessionId?: string; // For grouping multiple recordings (e.g., interview sessions)
   questionText?: string; // The question this recording answers (for interview sessions)
+  referenceDocumentId?: string; // Reference document (slides/script) ID
+  referenceType?: 'slides' | 'script'; // Type of reference document
+  minDuration?: number; // Minimum duration in seconds
+  maxDuration?: number; // Maximum duration in seconds
 }

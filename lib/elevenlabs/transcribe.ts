@@ -104,6 +104,7 @@ export async function transcribeAudio(videoUrl: string): Promise<Transcription> 
     // In Node.js 18+, FormData and File are available globally
     
     // Prepare audio file (reusable across retries)
+    // Convert Buffer to Uint8Array for Blob compatibility
     const audioBlob = new Blob([new Uint8Array(audioBuffer)], { type: 'audio/wav' });
     const audioFile = new File([audioBlob], 'audio.wav', { type: 'audio/wav' });
     
