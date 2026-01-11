@@ -3,6 +3,7 @@ import { writeFile, unlink } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { existsSync } from 'fs';
+import { isVmServiceConfigured, getVideoDurationFromUrl as vmGetVideoDuration } from './vm-ffmpeg/client';
 
 // Lazy load ffprobe path to handle Next.js bundling issues
 let ffprobePath: string | null = null;
@@ -76,12 +77,26 @@ export async function getVideoDurationFromPath(filePath: string): Promise<number
  * Extracts video duration from a File or Buffer
  * @param file - The video file (File or Buffer)
  * @param mimeType - The MIME type of the video
+ * @param videoUrl - Optional video URL for VM service (if video is already uploaded)
  * @returns Duration in seconds
  */
 export async function getVideoDuration(
   file: File | Buffer,
-  mimeType: string
+  mimeType: string,
+  videoUrl?: string
 ): Promise<number> {
+  // Try VM service first if configured and videoUrl is provided
+  if (isVmServiceConfigured() && videoUrl) {
+    try {
+      console.log('[VideoDuration] Using VM service for duration extraction');
+      return await vmGetVideoDuration(videoUrl);
+    } catch (error) {
+      console.warn('[VideoDuration] VM service failed, falling back to local ffprobe:', error);
+      // Fall through to local processing
+    }
+  }
+
+  // Fall back to local ffprobe processing
   // Convert File to Buffer if needed
   let buffer: Buffer;
   if (file instanceof File) {

@@ -53,6 +53,8 @@ Edit `.env.local` and add your API keys:
 - `ELEVENLABS_API_KEY`: Your ElevenLabs API key
 - `GOOGLE_GEMINI_API_KEY`: Your Google Gemini API key
 - `NEXTAUTH_SECRET`: A random secret string (generate with `openssl rand -base64 32`)
+- `FFMPEG_VM_URL`: (Optional) URL of FFmpeg service on VM (e.g., `http://45.77.218.210:3001`)
+- `FFMPEG_API_KEY`: (Optional) API key for FFmpeg VM service (must match VM service config)
 
 4. Run the development server:
 ```bash

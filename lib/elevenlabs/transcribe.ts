@@ -79,7 +79,8 @@ export async function transcribeAudio(videoUrl: string): Promise<Transcription> 
 
     // Extract audio from video
     console.log('[Transcribe] Extracting audio from video...');
-    const audioBuffer = await extractAudioFromBuffer(videoBuffer, videoExtension);
+    // Pass videoUrl to enable VM service if configured
+    const audioBuffer = await extractAudioFromBuffer(videoBuffer, videoExtension, videoUrl);
     console.log('[Transcribe] Audio extracted, size:', audioBuffer.length, 'bytes');
 
     if (!audioBuffer || audioBuffer.length === 0) {

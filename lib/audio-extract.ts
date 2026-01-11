@@ -3,6 +3,7 @@ import { writeFile, unlink, readFile } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { existsSync } from 'fs';
+import { isVmServiceConfigured, extractAudioFromVideo as vmExtractAudio } from './vm-ffmpeg/client';
 
 // Lazy load ffmpeg path to handle Next.js bundling issues
 let ffmpegPath: string | null = null;
@@ -76,12 +77,26 @@ export async function extractAudioFromVideo(videoPath: string): Promise<string> 
  * Extracts audio from a video buffer and returns audio buffer
  * @param videoBuffer - Buffer containing video data
  * @param videoExtension - Extension of the video file (e.g., 'mp4', 'webm')
+ * @param videoUrl - Optional video URL for VM service (if video is already uploaded)
  * @returns Buffer containing audio data (WAV format)
  */
 export async function extractAudioFromBuffer(
   videoBuffer: Buffer,
-  videoExtension: string
+  videoExtension: string,
+  videoUrl?: string
 ): Promise<Buffer> {
+  // Try VM service first if configured and videoUrl is provided
+  if (isVmServiceConfigured() && videoUrl) {
+    try {
+      console.log('[AudioExtract] Using VM service for audio extraction');
+      return await vmExtractAudio(videoUrl);
+    } catch (error) {
+      console.warn('[AudioExtract] VM service failed, falling back to local FFmpeg:', error);
+      // Fall through to local processing
+    }
+  }
+
+  // Fall back to local FFmpeg processing
   // Ensure ffmpeg path is set before using it
   getFfmpegPath();
   
