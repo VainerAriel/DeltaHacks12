@@ -93,7 +93,8 @@ export async function transcribeAudio(videoUrl: string): Promise<Transcription> 
     
     // Create File object with audio buffer
     // In Node.js, File constructor should work, but we need to ensure it's a proper Blob first
-    const audioBlob = new Blob([audioBuffer], { type: 'audio/wav' });
+    // Convert Buffer to Uint8Array for Blob compatibility
+    const audioBlob = new Blob([new Uint8Array(audioBuffer)], { type: 'audio/wav' });
     const audioFile = new File([audioBlob], 'audio.wav', { type: 'audio/wav' });
     
     // ElevenLabs API expects 'file' parameter, not 'audio'
