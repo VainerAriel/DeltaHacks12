@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, collections } from '@/lib/db/mongodb';
 import { ObjectId } from 'mongodb';
-import { getUserIdFromRequest } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { uploadToS3 } from '@/lib/s3/upload';
-import { isS3Configured } from '@/lib/s3/client';
-
-// For local storage (fallback if S3 is not configured - dev only)
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
 
 // Polyfill DOMMatrix for pdf-parse compatibility (must be before require)
 if (typeof global.DOMMatrix === 'undefined') {
@@ -91,15 +86,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user ID from JWT token
-    const userId = getUserIdFromRequest(request);
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Please log in.' },
-        { status: 401 }
-      );
+    // Check authentication
+    const authResult = requireAuth(request);
+    if ('error' in authResult) {
+      return authResult.error;
     }
+    const { userId } = authResult;
 
     // Extract text content
     let extractedContent = '';
@@ -122,46 +114,24 @@ export async function POST(request: NextRequest) {
     const documentId = new ObjectId().toString();
     const fileExtension = file.name.substring(file.name.lastIndexOf('.'));
     const fileName = `${documentId}${fileExtension}`;
+    
+    // Upload to S3 (required on Vercel) - uploadToS3 handles S3 upload and local fallback automatically
     let fileUrl: string;
-
-    // Upload to S3 (required on Vercel)
-    if (isS3Configured) {
-      try {
-        console.log('[UploadReference] Uploading to S3...');
-        fileUrl = await uploadToS3(file, fileName, file.type, 'references');
-        console.log('[UploadReference] Successfully uploaded to S3:', fileUrl);
-      } catch (error) {
-        console.error('[UploadReference] S3 upload failed:', error);
-        // On Vercel, S3 is required - don't fallback
-        if (process.env.VERCEL) {
-          throw new Error('S3 upload failed. S3 storage is required on Vercel. Please check your AWS credentials.');
-        }
-        // Fallback to local storage only in development
-        console.log('[UploadReference] Falling back to local storage (dev mode only)...');
-        const uploadsDir = join(process.cwd(), 'public', 'uploads', 'references');
-        await mkdir(uploadsDir, { recursive: true });
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-        const filePath = join(uploadsDir, fileName);
-        await writeFile(filePath, buffer);
-        fileUrl = `/uploads/references/${fileName}`;
-      }
-    } else {
+    try {
+      console.log('[UploadReference] Uploading file...');
+      fileUrl = await uploadToS3(file, fileName, file.type, 'references');
+      console.log('[UploadReference] Successfully uploaded:', fileUrl);
+    } catch (error) {
+      console.error('[UploadReference] Upload failed:', error);
       // On Vercel, S3 is required
       if (process.env.VERCEL) {
         return NextResponse.json(
-          { error: 'S3 storage is required on Vercel. Please configure AWS S3 credentials.' },
+          { error: 'S3 storage is required on Vercel. Please check your AWS credentials.' },
           { status: 500 }
         );
       }
-      // Local storage (dev only)
-      const uploadsDir = join(process.cwd(), 'public', 'uploads', 'references');
-      await mkdir(uploadsDir, { recursive: true });
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      const filePath = join(uploadsDir, fileName);
-      await writeFile(filePath, buffer);
-      fileUrl = `/uploads/references/${fileName}`;
+      // Re-throw error for local dev (uploadToS3 should have handled fallback)
+      throw error;
     }
 
     // Store in database

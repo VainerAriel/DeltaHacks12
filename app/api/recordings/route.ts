@@ -1,20 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, collections } from '@/lib/db/mongodb';
-import { getUserIdFromRequest } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get user ID from JWT token
-    const userId = getUserIdFromRequest(request);
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Please log in.' },
-        { status: 401 }
-      );
+    // Check authentication
+    const authResult = requireAuth(request);
+    if ('error' in authResult) {
+      return authResult.error;
     }
+    const { userId } = authResult;
 
     let db;
     try {
@@ -27,11 +24,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch recordings for user
+    // Fetch recordings for user with limit for better performance
     const recordings = await db
       .collection(collections.recordings)
       .find({ userId })
       .sort({ createdAt: -1 })
+      .limit(100) // Limit to 100 most recent recordings
       .toArray();
 
     // Optimize: Fetch all feedback reports in a single query instead of N queries
@@ -61,7 +59,11 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json(recordingsWithFeedback);
+    return NextResponse.json(recordingsWithFeedback, {
+      headers: {
+        'Cache-Control': 'private, max-age=30', // Cache for 30 seconds
+      },
+    });
   } catch (error) {
     console.error('Error fetching recordings:', error);
     return NextResponse.json(

@@ -360,20 +360,20 @@ export default function BusinessPresentationPracticePage() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Minimum Duration (seconds)</label>
+                      <label className="text-sm font-medium">Minimum Duration (minutes)</label>
                       <Input
                         type="number"
-                        placeholder="e.g., 60"
+                        placeholder="e.g., 5"
                         value={minDuration}
                         onChange={(e) => setMinDuration(e.target.value)}
                         min="0"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Maximum Duration (seconds)</label>
+                      <label className="text-sm font-medium">Maximum Duration (minutes)</label>
                       <Input
                         type="number"
-                        placeholder="e.g., 300"
+                        placeholder="e.g., 10"
                         value={maxDuration}
                         onChange={(e) => setMaxDuration(e.target.value)}
                         min="0"
@@ -453,8 +453,8 @@ export default function BusinessPresentationPracticePage() {
           <div className="lg:col-span-2">
             <VideoRecorder
               onUploadComplete={handleUploadComplete}
-              minDuration={minDuration ? parseInt(minDuration, 10) : undefined}
-              maxDuration={maxDuration ? parseInt(maxDuration, 10) : undefined}
+              minDuration={minDuration ? parseInt(minDuration, 10) * 60 : undefined}
+              maxDuration={maxDuration ? parseInt(maxDuration, 10) * 60 : undefined}
               referenceDocumentId={referenceDocumentId || undefined}
               scenario="business-presentation"
             />

@@ -36,15 +36,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch recording to get questionText, referenceDocumentId, and duration constraints
-    const recording = await db.collection(collections.recordings).findOne({
-      _id: new ObjectId(recordingId),
-    });
-
-    // Fetch transcription
-    const transcription = await db.collection(collections.transcriptions).findOne({
-      recordingId,
-    });
+    // Fetch recording, biometric data, and transcription in parallel for better performance
+    const [recording, biometricData, transcription] = await Promise.all([
+      db.collection(collections.recordings).findOne({
+        _id: new ObjectId(recordingId),
+      }),
+      db.collection(collections.biometricData).findOne({
+        recordingId,
+      }),
+      db.collection(collections.transcriptions).findOne({
+        recordingId,
+      }),
+    ]);
 
     if (!transcription) {
       return NextResponse.json(
@@ -53,27 +56,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update status to analyzing
-    await db.collection(collections.recordings).updateOne(
-      { _id: new ObjectId(recordingId) },
-      { $set: { status: RecordingStatus.ANALYZING } }
-    );
-
     // Get questionText and duration from recording if available
     const questionText = recording?.questionText;
     const duration = recording?.duration || 0;
     
-    // Fetch reference document if available
+    // Update status to analyzing and fetch reference document in parallel
+    const [_, referenceDoc] = await Promise.all([
+      db.collection(collections.recordings).updateOne(
+        { _id: new ObjectId(recordingId) },
+        { $set: { status: RecordingStatus.ANALYZING } }
+      ),
+      recording?.referenceDocumentId
+        ? db.collection(collections.referenceDocuments).findOne({
+            _id: new ObjectId(recording.referenceDocumentId),
+          })
+        : Promise.resolve(null),
+    ]);
+    
     let referenceContent: string | undefined;
     let referenceType: 'slides' | 'script' | undefined;
-    if (recording?.referenceDocumentId) {
-      const referenceDoc = await db.collection(collections.referenceDocuments).findOne({
-        _id: new ObjectId(recording.referenceDocumentId),
-      });
-      if (referenceDoc) {
-        referenceContent = referenceDoc.extractedContent;
-        referenceType = referenceDoc.type;
-      }
+    if (referenceDoc) {
+      referenceContent = referenceDoc.extractedContent;
+      referenceType = referenceDoc.type;
     }
 
     // Get duration constraints and actual duration from recording

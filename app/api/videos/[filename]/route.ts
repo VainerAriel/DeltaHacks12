@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import path from 'path';
+import { getContentType } from '@/lib/utils';
 
 export async function GET(
   req: NextRequest,
@@ -15,14 +16,7 @@ export async function GET(
     );
 
     const file = await readFile(filePath);
-
-    // Determine content type based on extension
-    const ext = params.filename.split('.').pop()?.toLowerCase();
-    const contentType = 
-      ext === 'mp4' ? 'video/mp4' :
-      ext === 'webm' ? 'video/webm' :
-      ext === 'mov' ? 'video/quicktime' :
-      'application/octet-stream';
+    const contentType = getContentType(params.filename);
 
     return new NextResponse(file, {
       headers: {
