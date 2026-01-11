@@ -17,6 +17,7 @@ const nextConfig = {
       config.externals.push({
         'ffmpeg-static': 'commonjs ffmpeg-static',
         'ffprobe-static': 'commonjs ffprobe-static',
+        'pdf-parse': 'commonjs pdf-parse',
       });
     }
     return config;

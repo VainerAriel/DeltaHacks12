@@ -92,8 +92,8 @@ export async function transcribeAudio(videoUrl: string): Promise<Transcription> 
     const formData = new FormData();
     
     // Create File object with audio buffer
-    // In Node.js, File constructor should work, but we need to ensure it's a proper Blob first
-    const audioBlob = new Blob([audioBuffer], { type: 'audio/wav' });
+    // Convert Buffer to Uint8Array for Blob compatibility
+    const audioBlob = new Blob([new Uint8Array(audioBuffer)], { type: 'audio/wav' });
     const audioFile = new File([audioBlob], 'audio.wav', { type: 'audio/wav' });
     
     // ElevenLabs API expects 'file' parameter, not 'audio'
@@ -177,7 +177,7 @@ export async function transcribeAudio(videoUrl: string): Promise<Transcription> 
         // Fallback: generate word timestamps from text
         const textWords = text.split(/\s+/);
         let currentTime = 0;
-        textWords.forEach((word) => {
+        textWords.forEach((word: string) => {
           const start = currentTime;
           const duration = 0.3 + Math.random() * 0.5;
           const end = start + duration;

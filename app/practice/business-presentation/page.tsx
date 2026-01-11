@@ -1,17 +1,85 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import VideoRecorder from '@/components/recording/VideoRecorder';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Loader2, CheckCircle2, AlertCircle, ArrowLeft, Upload, FileText, X } from 'lucide-react';
+
+type Step = 'upload-prompt' | 'setup' | 'recording';
 
 export default function BusinessPresentationPracticePage() {
   const router = useRouter();
+  const [step, setStep] = useState<Step>('upload-prompt');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
   const [recordingId, setRecordingId] = useState<string | null>(null);
+  
+  // Reference document state
+  const [referenceFile, setReferenceFile] = useState<File | null>(null);
+  const [referenceType, setReferenceType] = useState<'slides' | 'script' | null>(null);
+  const [referenceDocumentId, setReferenceDocumentId] = useState<string | null>(null);
+  const [isUploadingReference, setIsUploadingReference] = useState(false);
+  const referenceFileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Setup state
+  const [minDuration, setMinDuration] = useState<string>('');
+  const [maxDuration, setMaxDuration] = useState<string>('');
+
+  const handleReferenceUpload = async () => {
+    if (!referenceFile || !referenceType) return;
+
+    setIsUploadingReference(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', referenceFile);
+      formData.append('type', referenceType);
+
+      const response = await fetch('/api/upload-reference', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to upload reference document';
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch (e) {
+          // If response is not JSON, try to get text
+          const errorText = await response.text();
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      setReferenceDocumentId(result.documentId);
+      setStep('setup');
+    } catch (error) {
+      console.error('Error uploading reference:', error);
+      alert(error instanceof Error ? error.message : 'Failed to upload reference document');
+    } finally {
+      setIsUploadingReference(false);
+    }
+  };
+
+  const handleSkipReference = () => {
+    setStep('setup');
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setReferenceFile(file);
+    }
+  };
+
+  const handleProceedToRecording = () => {
+    setStep('recording');
+  };
 
   const handleUploadComplete = async (uploadedRecordingId: string) => {
     setRecordingId(uploadedRecordingId);
@@ -53,6 +121,230 @@ export default function BusinessPresentationPracticePage() {
     }
   };
 
+  // Render upload prompt step
+  if (step === 'upload-prompt') {
+    return (
+      <div className="min-h-screen bg-background p-4 md:p-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-6">
+            <div className="flex items-center gap-4 mb-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.push('/practice')}
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold mb-2">Business Presentation Practice</h1>
+                <p className="text-muted-foreground">
+                  Deliver a clear and engaging presentation to your team
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Upload Reference Material (Optional)</CardTitle>
+              <CardDescription>
+                Would you like to upload a slide deck or script to get feedback on how well you follow it?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex gap-4">
+                  <Button
+                    variant={referenceType === 'slides' ? 'default' : 'outline'}
+                    onClick={() => setReferenceType('slides')}
+                    className="flex-1"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Slide Deck
+                  </Button>
+                  <Button
+                    variant={referenceType === 'script' ? 'default' : 'outline'}
+                    onClick={() => setReferenceType('script')}
+                    className="flex-1"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Script
+                  </Button>
+                </div>
+
+                {referenceType && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        ref={referenceFileInputRef}
+                        type="file"
+                        accept=".pdf,.txt"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => referenceFileInputRef.current?.click()}
+                        className="w-full"
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        {referenceFile ? referenceFile.name : `Choose ${referenceType === 'slides' ? 'Slide Deck' : 'Script'} File (PDF or TXT)`}
+                      </Button>
+                    </div>
+                    {referenceFile && (
+                      <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                        <FileText className="w-4 h-4" />
+                        <span className="text-sm flex-1">{referenceFile.name}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setReferenceFile(null)}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-4">
+                  {referenceFile && referenceType && (
+                    <Button
+                      onClick={handleReferenceUpload}
+                      disabled={isUploadingReference}
+                      className="flex-1"
+                    >
+                      {isUploadingReference ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Upload & Continue
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    onClick={handleSkipReference}
+                    className="flex-1"
+                  >
+                    Skip & Continue
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Render setup step
+  if (step === 'setup') {
+    return (
+      <div className="min-h-screen bg-background p-4 md:p-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-6">
+            <div className="flex items-center gap-4 mb-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setStep('upload-prompt')}
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold mb-2">Recording Setup</h1>
+                <p className="text-muted-foreground">
+                  Configure your recording options
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Duration Constraints (Optional)</CardTitle>
+                  <CardDescription>
+                    Set minimum and maximum duration for your presentation
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Minimum Duration (seconds)</label>
+                      <Input
+                        type="number"
+                        placeholder="e.g., 60"
+                        value={minDuration}
+                        onChange={(e) => setMinDuration(e.target.value)}
+                        min="0"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Maximum Duration (seconds)</label>
+                      <Input
+                        type="number"
+                        placeholder="e.g., 300"
+                        value={maxDuration}
+                        onChange={(e) => setMaxDuration(e.target.value)}
+                        min="0"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Button
+                onClick={handleProceedToRecording}
+                className="w-full"
+                size="lg"
+              >
+                Continue to Recording
+              </Button>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Business Presentation</CardTitle>
+                  <CardDescription>
+                    Deliver a clear and engaging presentation to your team
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="p-4 bg-muted rounded-md">
+                    <p className="text-sm font-medium mb-2">Suggested Prompt:</p>
+                    <p className="text-sm italic">
+                      "Present a new product idea to your team. Explain the problem it solves and its key features."
+                    </p>
+                  </div>
+                  <div className="p-4 bg-muted rounded-md">
+                    <p className="text-sm font-medium mb-2">Tips:</p>
+                    <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+                      <li>Structure your presentation clearly</li>
+                      <li>Use visual aids effectively</li>
+                      <li>Engage with your audience</li>
+                      <li>Speak with confidence and authority</li>
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render recording step
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
@@ -61,7 +353,7 @@ export default function BusinessPresentationPracticePage() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => router.push('/practice')}
+              onClick={() => setStep('setup')}
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
@@ -77,7 +369,12 @@ export default function BusinessPresentationPracticePage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Recording Area */}
           <div className="lg:col-span-2">
-            <VideoRecorder onUploadComplete={handleUploadComplete} />
+            <VideoRecorder
+              onUploadComplete={handleUploadComplete}
+              minDuration={minDuration ? parseInt(minDuration, 10) : undefined}
+              maxDuration={maxDuration ? parseInt(maxDuration, 10) : undefined}
+              referenceDocumentId={referenceDocumentId || undefined}
+            />
             
             {/* Processing Status */}
             {isProcessing && (

@@ -17,13 +17,23 @@ const genAI = process.env.GOOGLE_GEMINI_API_KEY
  * @param transcription - Transcription data from ElevenLabs
  * @param scenario - Optional scenario type (e.g., 'job-interview')
  * @param questionText - Optional question text (for job interview scenarios)
+ * @param referenceContent - Optional reference content (slides/script text)
+ * @param referenceType - Optional reference type ('slides' or 'script')
+ * @param minDuration - Optional minimum duration in seconds
+ * @param maxDuration - Optional maximum duration in seconds
+ * @param actualDuration - Optional actual duration in seconds
  * @returns Structured feedback report
  */
 export async function analyzePresentation(
   biometricData: BiometricData,
   transcription: Transcription,
   scenario?: string,
-  questionText?: string
+  questionText?: string,
+  referenceContent?: string,
+  referenceType?: 'slides' | 'script',
+  minDuration?: number,
+  maxDuration?: number,
+  actualDuration?: number
 ): Promise<FeedbackReport> {
   if (!genAI) {
     throw new Error('GOOGLE_GEMINI_API_KEY is required but not set. Please configure it in your .env.local file.');
@@ -40,6 +50,41 @@ export async function analyzePresentation(
 
   // Build prompt based on scenario
   let prompt: string;
+  
+  // Build reference comparison section if available
+  let referenceSection = '';
+  if (referenceContent && referenceType) {
+    referenceSection = `
+
+Reference ${referenceType === 'slides' ? 'Slide Deck' : 'Script'}:
+"${referenceContent.substring(0, 5000)}"${referenceContent.length > 5000 ? '...' : ''}
+
+IMPORTANT: Compare the presentation to the provided ${referenceType === 'slides' ? 'slide deck' : 'script'}.
+Evaluate how well the presenter follows the ${referenceType === 'slides' ? 'slides' : 'script'}.
+Note any deviations, missed points, or areas where they could better align with the reference material.
+Include this comparison in your analysis.`;
+  }
+  
+  // Build duration feedback section if constraints provided
+  let durationSection = '';
+  if (actualDuration !== undefined && (minDuration !== undefined || maxDuration !== undefined)) {
+    const tooShort = minDuration !== undefined && actualDuration < minDuration;
+    const tooLong = maxDuration !== undefined && actualDuration > maxDuration;
+    
+    if (tooShort || tooLong) {
+      durationSection = `
+
+Duration Analysis:
+- Actual Duration: ${actualDuration} seconds
+- Target Duration: ${minDuration !== undefined ? `Minimum: ${minDuration}s` : ''}${minDuration !== undefined && maxDuration !== undefined ? ', ' : ''}${maxDuration !== undefined ? `Maximum: ${maxDuration}s` : ''}
+- Status: ${tooShort ? 'TOO SHORT' : tooLong ? 'TOO LONG' : 'WITHIN RANGE'}
+
+Provide specific feedback on how to adjust the presentation length:
+${tooShort ? '- Suggest what content to expand or add to meet the minimum duration' : ''}
+${tooLong ? '- Suggest what content to trim or cut to meet the maximum duration' : ''}
+Include duration-related recommendations in your response.`;
+    }
+  }
   
   if (scenario === 'job-interview' && questionText) {
     prompt = `You are analyzing a job interview practice session. The candidate answered a behavioral interview question.
@@ -61,7 +106,7 @@ Provide structured feedback on:
 1) Physical confidence indicators (heart rate, breathing, facial expressions) - assess interview presence
 2) Speech quality (pace, clarity, filler words, pauses) - important for clear communication
 3) Answer structure and content quality - how well they answered the behavioral question using STAR method
-4) Interview-specific recommendations (confidence, clarity, structure, professionalism)
+4) Interview-specific recommendations (confidence, clarity, structure, professionalism)${referenceSection}${durationSection}
 
 Format your response as JSON with this exact structure:
 {
@@ -107,7 +152,7 @@ Provide structured feedback on:
 1) Physical confidence indicators (heart rate, breathing, facial expressions)
 2) Speech quality (pace, clarity, filler words, pauses)
 3) Overall presentation effectiveness
-4) Specific actionable recommendations for ESL learners
+4) Specific actionable recommendations for ESL learners${referenceSection}${durationSection}
 
 Format your response as JSON with this exact structure:
 {
@@ -168,6 +213,55 @@ Only return the JSON, no additional text.`;
         throw new Error('Failed to parse Gemini API response');
       }
 
+      // Generate duration feedback if needed
+      let durationFeedback: FeedbackReport['durationFeedback'] | undefined;
+      if (actualDuration !== undefined && (minDuration !== undefined || maxDuration !== undefined)) {
+        const tooShort = minDuration !== undefined && actualDuration < minDuration;
+        const tooLong = maxDuration !== undefined && actualDuration > maxDuration;
+        
+        if (tooShort || tooLong) {
+          let feedbackText = '';
+          if (tooShort) {
+            feedbackText = `Your presentation is ${minDuration - actualDuration} seconds too short. Consider expanding on key points, adding examples, or providing more detail to meet the minimum duration of ${minDuration} seconds.`;
+          } else if (tooLong) {
+            feedbackText = `Your presentation is ${actualDuration - maxDuration} seconds too long. Consider trimming less essential content, speaking more concisely, or cutting redundant points to meet the maximum duration of ${maxDuration} seconds.`;
+          }
+          
+          durationFeedback = {
+            actual: actualDuration,
+            target: {
+              ...(minDuration !== undefined && { min: minDuration }),
+              ...(maxDuration !== undefined && { max: maxDuration }),
+            },
+            feedback: feedbackText,
+          };
+        }
+      }
+      
+      // Generate reference adherence feedback if reference content exists
+      let referenceAdherence: FeedbackReport['referenceAdherence'] | undefined;
+      if (referenceContent && referenceType) {
+        // Extract reference adherence from parsed response if available
+        if (parsed.referenceAdherence) {
+          referenceAdherence = parsed.referenceAdherence;
+        } else {
+          // Fallback: generate basic feedback from recommendations
+          const contentRecommendations = parsed.recommendations?.filter((r: any) => 
+            r.category === 'content' && 
+            (r.description?.toLowerCase().includes('reference') || 
+             r.description?.toLowerCase().includes('slide') || 
+             r.description?.toLowerCase().includes('script'))
+          ) || [];
+          
+          if (contentRecommendations.length > 0) {
+            referenceAdherence = {
+              score: 75, // Default score
+              analysis: contentRecommendations.map((r: any) => r.description).join(' '),
+            };
+          }
+        }
+      }
+      
       // Map to FeedbackReport structure
       return {
         id: `feedback-${Date.now()}`,
@@ -187,6 +281,8 @@ Only return the JSON, no additional text.`;
         },
         recommendations: parsed.recommendations || [],
         createdAt: new Date(),
+        ...(referenceAdherence && { referenceAdherence }),
+        ...(durationFeedback && { durationFeedback }),
       };
     } catch (error: any) {
       // If it's a 404 model not found error, try next model

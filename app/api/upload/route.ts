@@ -18,9 +18,14 @@ export async function POST(request: NextRequest) {
     const videoFile = formData.get('video') as File;
     const sessionId = formData.get('sessionId') as string | null;
     const questionText = formData.get('questionText') as string | null;
+    const referenceDocumentId = formData.get('referenceDocumentId') as string | null;
+    const minDurationStr = formData.get('minDuration') as string | null;
+    const maxDurationStr = formData.get('maxDuration') as string | null;
     console.log('[Upload] Video file received:', videoFile ? `Size: ${videoFile.size} bytes, Type: ${videoFile.type}` : 'null');
     console.log('[Upload] Session ID:', sessionId || 'none');
     console.log('[Upload] Question text:', questionText || 'none');
+    console.log('[Upload] Reference document ID:', referenceDocumentId || 'none');
+    console.log('[Upload] Duration constraints:', minDurationStr || 'none', '-', maxDurationStr || 'none');
 
     if (!videoFile) {
       return NextResponse.json(
@@ -146,6 +151,26 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
+    
+    // Parse duration constraints
+    const minDuration = minDurationStr ? parseInt(minDurationStr, 10) : undefined;
+    const maxDuration = maxDurationStr ? parseInt(maxDurationStr, 10) : undefined;
+    
+    // Get reference type if reference document ID is provided
+    let referenceType: 'slides' | 'script' | undefined;
+    if (referenceDocumentId && ObjectId.isValid(referenceDocumentId)) {
+      try {
+        const refDoc = await db.collection(collections.referenceDocuments).findOne({
+          _id: new ObjectId(referenceDocumentId),
+        });
+        if (refDoc) {
+          referenceType = refDoc.type;
+        }
+      } catch (error) {
+        console.error('[Upload] Error fetching reference document:', error);
+      }
+    }
+    
     const recording: Omit<Recording, 'id'> = {
       userId,
       videoUrl,
@@ -154,6 +179,10 @@ export async function POST(request: NextRequest) {
       createdAt: new Date(),
       ...(sessionId && { sessionId }),
       ...(questionText && { questionText }),
+      ...(referenceDocumentId && { referenceDocumentId }),
+      ...(referenceType && { referenceType }),
+      ...(minDuration !== undefined && { minDuration }),
+      ...(maxDuration !== undefined && { maxDuration }),
     };
 
     await db.collection(collections.recordings).insertOne({

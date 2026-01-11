@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch recording to get questionText if available
+    // Fetch recording to get questionText, referenceDocumentId, and duration constraints
     const recording = await db.collection(collections.recordings).findOne({
       _id: new ObjectId(recordingId),
     });
@@ -66,13 +66,36 @@ export async function POST(request: NextRequest) {
 
     // Get questionText from recording if available
     const questionText = recording?.questionText;
+    
+    // Fetch reference document if available
+    let referenceContent: string | undefined;
+    let referenceType: 'slides' | 'script' | undefined;
+    if (recording?.referenceDocumentId) {
+      const referenceDoc = await db.collection(collections.referenceDocuments).findOne({
+        _id: new ObjectId(recording.referenceDocumentId),
+      });
+      if (referenceDoc) {
+        referenceContent = referenceDoc.extractedContent;
+        referenceType = referenceDoc.type;
+      }
+    }
+
+    // Get duration constraints and actual duration from recording
+    const minDuration = recording?.minDuration;
+    const maxDuration = recording?.maxDuration;
+    const actualDuration = recording?.duration;
 
     // Analyze presentation
     const feedbackReport = await analyzePresentation(
-      biometricData as BiometricData,
-      transcription as Transcription,
+      biometricData as unknown as BiometricData,
+      transcription as unknown as Transcription,
       scenario,
-      questionText
+      questionText,
+      referenceContent,
+      referenceType,
+      minDuration,
+      maxDuration,
+      actualDuration
     );
     feedbackReport.recordingId = recordingId;
 

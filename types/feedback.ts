@@ -16,6 +16,18 @@ export interface FeedbackReport {
   };
   recommendations: Recommendation[];
   createdAt: Date;
+  referenceAdherence?: {
+    score: number;
+    analysis: string;
+  };
+  durationFeedback?: {
+    actual: number;
+    target: {
+      min?: number;
+      max?: number;
+    };
+    feedback: string;
+  };
 }
 
 export interface Recommendation {
