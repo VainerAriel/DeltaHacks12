@@ -12,6 +12,8 @@ declare module 'fluent-ffmpeg' {
   interface Ffmpeg {
     (path?: string): FfmpegCommand;
     setFfmpegPath(path: string): void;
+    setFfprobePath(path: string): void;
+    ffprobe(filePath: string, callback: (err: Error | null, metadata: { format: { duration?: number } }) => void): void;
   }
 
   const ffmpeg: Ffmpeg;
