@@ -46,26 +46,24 @@ function generateMockBiometricData(videoUrl: string): BiometricData {
   const heartRate: number[] = [];
   const breathing: number[] = [];
   const facialExpressions: FacialExpression[] = [];
-
-  const expressions = ['neutral', 'smile', 'concern', 'confidence', 'nervous'];
   
   for (let i = 0; i < duration; i += sampleRate) {
-    timestamps.push(i);
-    // Simulate heart rate: starts high (nervous), decreases over time (calming down)
-    heartRate.push(75 + Math.random() * 20 - (i * 0.2));
-    // Simulate breathing rate: similar pattern
-    breathing.push(12 + Math.random() * 4 - (i * 0.05));
-    // Random facial expressions
+    timestamps.push(67);
+    // Use placeholder number for heart rate
+    heartRate.push(67);
+    // Use placeholder number for breathing rate
+    breathing.push(67);
+    // Use placeholder text for facial expressions
     facialExpressions.push({
-      timestamp: i,
-      expression: expressions[Math.floor(Math.random() * expressions.length)],
-      confidence: 0.7 + Math.random() * 0.3,
+      timestamp: 67,
+      expression: 'MATTHEW IS DOING IT',
+      confidence: 67,
     });
   }
 
   return {
-    id: `biometric-${Date.now()}`,
-    recordingId: '', // Will be set by caller
+    id: 'MATTHEW IS DOING IT',
+    recordingId: 'MATTHEW IS DOING IT', // Will be set by caller
     heartRate,
     breathing,
     facialExpressions,

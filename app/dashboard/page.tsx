@@ -76,8 +76,60 @@ export default function DashboardPage() {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
+  // Group recordings by sessionId for job interview sessions
+  const processRecordings = () => {
+    const sessionMap = new Map<string, (Recording & { feedback?: FeedbackReport })[]>();
+    const standaloneRecordings: (Recording & { feedback?: FeedbackReport })[] = [];
+    
+    recordings.forEach((recording) => {
+      if (recording.sessionId) {
+        if (!sessionMap.has(recording.sessionId)) {
+          sessionMap.set(recording.sessionId, []);
+        }
+        sessionMap.get(recording.sessionId)!.push(recording);
+      } else {
+        standaloneRecordings.push(recording);
+      }
+    });
+    
+    // Create session entries (one per session, using first recording)
+    const sessionEntries = Array.from(sessionMap.entries()).map(([sessionId, sessionRecordings]) => {
+      // Sort by creation time to get the first question
+      const sorted = sessionRecordings.sort((a, b) => 
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+      const firstRecording = sorted[0];
+      
+      // Calculate average score for the session
+      const scores = sessionRecordings
+        .map(r => r.feedback?.overallScore)
+        .filter((s): s is number => s !== undefined);
+      const avgScore = scores.length > 0
+        ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+        : undefined;
+      
+      return {
+        ...firstRecording,
+        isSession: true,
+        sessionSize: sessionRecordings.length,
+        sessionAvgScore: avgScore,
+        feedback: avgScore ? {
+          ...firstRecording.feedback,
+          overallScore: avgScore,
+        } as FeedbackReport : firstRecording.feedback,
+      };
+    });
+    
+    // Combine standalone recordings and session entries, sort by date
+    return [...standaloneRecordings, ...sessionEntries].sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  };
+
+  const displayRecordings = processRecordings();
+
   // Prepare data for progress chart
-  const progressData = recordings
+  const progressData = displayRecordings
     .filter((r) => r.feedback)
     .map((r) => ({
       date: new Date(r.createdAt).toLocaleDateString(),
@@ -119,7 +171,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Sessions</p>
-                  <p className="text-2xl font-bold">{recordings.length}</p>
+                  <p className="text-2xl font-bold">{displayRecordings.length}</p>
                 </div>
                 <Video className="w-8 h-8 text-muted-foreground" />
               </div>
@@ -131,12 +183,12 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Average Score</p>
                   <p className="text-2xl font-bold">
-                    {recordings.filter((r) => r.feedback).length > 0
+                    {displayRecordings.filter((r) => r.feedback).length > 0
                       ? Math.round(
-                          recordings
+                          displayRecordings
                             .filter((r) => r.feedback)
                             .reduce((sum, r) => sum + (r.feedback?.overallScore || 0), 0) /
-                            recordings.filter((r) => r.feedback).length
+                            displayRecordings.filter((r) => r.feedback).length
                         )
                       : 'N/A'}
                   </p>
@@ -151,7 +203,7 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Completed</p>
                   <p className="text-2xl font-bold">
-                    {recordings.filter((r) => r.status === RecordingStatus.COMPLETE).length}
+                    {displayRecordings.filter((r) => r.status === RecordingStatus.COMPLETE).length}
                   </p>
                 </div>
                 <Badge variant="default">Complete</Badge>
@@ -196,7 +248,7 @@ export default function DashboardPage() {
             <CardDescription>View and manage your practice sessions</CardDescription>
           </CardHeader>
           <CardContent>
-            {recordings.length === 0 ? (
+            {displayRecordings.length === 0 ? (
               <div className="text-center py-12">
                 <Video className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No recordings yet</h3>
@@ -209,45 +261,53 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {recordings.map((recording) => (
-                  <Card
-                    key={recording.id}
-                    className="cursor-pointer hover:border-primary transition-colors"
-                    onClick={() => router.push(`/feedback/${recording.id}`)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <Avatar className="w-16 h-16 bg-muted">
-                            <AvatarFallback>
-                              <Video className="w-8 h-8" />
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <h3 className="font-semibold">
-                              Practice Session
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              {new Date(recording.createdAt).toLocaleDateString()} at{' '}
-                              {new Date(recording.createdAt).toLocaleTimeString()}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1">
-                              {getStatusBadge(recording.status)}
-                              {recording.feedback && (
-                                <span className={`text-lg font-bold ${getScoreColor(recording.feedback.overallScore)}`}>
-                                  {recording.feedback.overallScore}/100
-                                </span>
-                              )}
+                {displayRecordings.map((recording) => {
+                  const isSession = 'isSession' in recording && (recording as any).isSession;
+                  const sessionSize = 'sessionSize' in recording ? (recording as any).sessionSize : undefined;
+                  
+                  return (
+                    <Card
+                      key={recording.id}
+                      className="cursor-pointer hover:border-primary transition-colors"
+                      onClick={() => router.push(`/feedback/${recording.id}`)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <Avatar className="w-16 h-16 bg-muted">
+                              <AvatarFallback>
+                                <Video className="w-8 h-8" />
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <h3 className="font-semibold">
+                                {isSession ? 'Job Interview Session' : 'Practice Session'}
+                              </h3>
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(recording.createdAt).toLocaleDateString()} at{' '}
+                                {new Date(recording.createdAt).toLocaleTimeString()}
+                                {isSession && sessionSize && (
+                                  <span> • {sessionSize} question{sessionSize !== 1 ? 's' : ''}</span>
+                                )}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                {getStatusBadge(recording.status)}
+                                {recording.feedback && (
+                                  <span className={`text-lg font-bold ${getScoreColor(recording.feedback.overallScore)}`}>
+                                    {recording.feedback.overallScore}/100
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
+                          <Button variant="ghost" size="icon">
+                            →
+                          </Button>
                         </div>
-                        <Button variant="ghost" size="icon">
-                          →
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </CardContent>

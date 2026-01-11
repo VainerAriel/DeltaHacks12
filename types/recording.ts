@@ -16,4 +16,6 @@ export interface Recording {
   status: RecordingStatus;
   createdAt: Date;
   thumbnailUrl?: string;
+  sessionId?: string; // For grouping multiple recordings (e.g., interview sessions)
+  questionText?: string; // The question this recording answers (for interview sessions)
 }

@@ -9,9 +9,11 @@ import { Video, Upload, Play, Pause, Square, Loader2 } from 'lucide-react';
 interface VideoRecorderProps {
   onRecordingComplete?: (blob: Blob) => void;
   onUploadComplete?: (recordingId: string) => void;
+  sessionId?: string;
+  questionText?: string;
 }
 
-export default function VideoRecorder({ onRecordingComplete, onUploadComplete }: VideoRecorderProps) {
+export default function VideoRecorder({ onRecordingComplete, onUploadComplete, sessionId, questionText }: VideoRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordedTime, setRecordedTime] = useState(0);
@@ -181,6 +183,14 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete }:
       // Use the original filename if it's a File, otherwise use a default name
       const fileName = file instanceof File ? file.name : 'recording.webm';
       formData.append('video', file, fileName);
+      
+      // Add sessionId and questionText if provided
+      if (sessionId) {
+        formData.append('sessionId', sessionId);
+      }
+      if (questionText) {
+        formData.append('questionText', questionText);
+      }
 
       const xhr = new XMLHttpRequest();
 
@@ -236,7 +246,7 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete }:
     } finally {
       setIsUploading(false);
     }
-  }, [onUploadComplete]);
+  }, [onUploadComplete, sessionId, questionText]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -272,22 +282,22 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete }:
             onDragOver={handleDragOver}
             onDrop={handleDrop}
           >
-            {videoUrl && !isRecording ? (
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              className={`w-full h-full ${isRecording ? 'object-cover' : 'object-contain'}`}
+              style={{ display: isRecording ? 'block' : 'none' }}
+            />
+            {videoUrl && !isRecording && (
               <video
-                ref={videoRef}
                 src={videoUrl}
                 controls
                 className="w-full h-full object-contain"
               />
-            ) : isRecording ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                muted
-                playsInline
-                className="w-full h-full object-cover"
-              />
-            ) : (
+            )}
+            {!isRecording && !videoUrl && (
               <div className="w-full h-full flex items-center justify-center">
                 <div className="text-center text-gray-400">
                   <Video className="w-16 h-16 mx-auto mb-2" />

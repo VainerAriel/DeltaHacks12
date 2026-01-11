@@ -9,7 +9,7 @@ import { ObjectId } from 'mongodb';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { recordingId } = body;
+    const { recordingId, scenario } = body;
 
     if (!recordingId) {
       return NextResponse.json(
@@ -37,6 +37,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fetch recording to get questionText if available
+    const recording = await db.collection(collections.recordings).findOne({
+      _id: new ObjectId(recordingId),
+    });
+
     // Fetch biometric data and transcription
     const biometricData = await db.collection(collections.biometricData).findOne({
       recordingId,
@@ -59,10 +64,15 @@ export async function POST(request: NextRequest) {
       { $set: { status: RecordingStatus.ANALYZING } }
     );
 
+    // Get questionText from recording if available
+    const questionText = recording?.questionText;
+
     // Analyze presentation
     const feedbackReport = await analyzePresentation(
       biometricData as BiometricData,
-      transcription as Transcription
+      transcription as Transcription,
+      scenario,
+      questionText
     );
     feedbackReport.recordingId = recordingId;
 
