@@ -343,6 +343,45 @@ export default function FeedbackPage() {
           </Button>
         </div>
 
+        {/* Question Navigation for Session Mode - Moved to top for better visibility */}
+        {isSessionMode && sessionRecordings.length > 1 && (
+          <Card className="border-primary/20">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-4">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => switchToQuestion(currentQuestionIndex - 1)}
+                  disabled={currentQuestionIndex === 0}
+                  className="shrink-0"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </Button>
+                <div className="text-center flex-1 min-w-0">
+                  <p className="text-sm text-muted-foreground mb-1">Interview Question</p>
+                  <p className="text-lg font-semibold">
+                    {currentQuestionIndex + 1} of {sessionRecordings.length}
+                  </p>
+                  {recording?.questionText && (
+                    <p className="text-sm text-muted-foreground mt-2 px-4 line-clamp-2">
+                      {recording.questionText}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => switchToQuestion(currentQuestionIndex + 1)}
+                  disabled={currentQuestionIndex === sessionRecordings.length - 1}
+                  className="shrink-0"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Overall Score - Show session average if in session mode */}
         {isSessionMode && sessionRecordings.length > 0 ? (
           <Card>
@@ -415,43 +454,6 @@ export default function FeedbackPage() {
             </CardContent>
           </Card>
         ) : null}
-
-        {/* Question Navigation for Session Mode */}
-        {isSessionMode && sessionRecordings.length > 1 && (
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => switchToQuestion(currentQuestionIndex - 1)}
-                  disabled={currentQuestionIndex === 0}
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </Button>
-                <div className="text-center flex-1">
-                  <p className="text-sm text-muted-foreground">Question</p>
-                  <p className="text-lg font-semibold">
-                    {currentQuestionIndex + 1} of {sessionRecordings.length}
-                  </p>
-                  {recording?.questionText && (
-                    <p className="text-sm text-muted-foreground mt-1 max-w-2xl mx-auto">
-                      {recording.questionText}
-                    </p>
-                  )}
-                </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => switchToQuestion(currentQuestionIndex + 1)}
-                  disabled={currentQuestionIndex === sessionRecordings.length - 1}
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Question Display for Session Mode */}
         {isSessionMode && recording?.questionText && (

@@ -307,22 +307,33 @@ export default function DashboardPage() {
                                 <Video className="w-8 h-8" />
                               </AvatarFallback>
                             </Avatar>
-                            <div>
-                              <h3 className="font-semibold">
-                                {isSession ? 'Job Interview Session' : 'Practice Session'}
-                              </h3>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-semibold">
+                                  {isSession ? 'Job Interview Session' : 'Practice Session'}
+                                </h3>
+                                {isSession && sessionSize && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {sessionSize} Question{sessionSize !== 1 ? 's' : ''}
+                                  </Badge>
+                                )}
+                              </div>
                               <p className="text-sm text-muted-foreground">
                                 {new Date(recording.createdAt).toLocaleDateString()} at{' '}
                                 {new Date(recording.createdAt).toLocaleTimeString()}
-                                {isSession && sessionSize && (
-                                  <span> • {sessionSize} question{sessionSize !== 1 ? 's' : ''}</span>
-                                )}
                               </p>
-                              <div className="flex items-center gap-2 mt-1">
+                              {isSession && recording.questionText && (
+                                <p className="text-sm text-muted-foreground mt-1 italic">
+                                  "{recording.questionText}"
+                                </p>
+                              )}
+                              <div className="flex items-center gap-2 mt-2">
                                 {getStatusBadge(recording.status)}
                                 {recording.feedback && (
                                   <span className={`text-lg font-bold ${getScoreColor(recording.feedback.overallScore)}`}>
-                                    {recording.feedback.overallScore}/100
+                                    {isSession && 'sessionSize' in recording 
+                                      ? `Avg: ${recording.feedback.overallScore}/100`
+                                      : `${recording.feedback.overallScore}/100`}
                                   </span>
                                 )}
                               </div>
