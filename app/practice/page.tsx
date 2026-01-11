@@ -1,198 +1,87 @@
 'use client';
 
-import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import VideoRecorder from '@/components/recording/VideoRecorder';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Briefcase, Rocket, Presentation, MessageCircle, ArrowRight } from 'lucide-react';
 
 const practiceScenarios = [
   {
     id: 'job-interview',
     title: 'Job Interview',
-    description: 'Practice answering common interview questions with confidence.',
-    prompt: 'Tell me about yourself and why you are interested in this position.',
-  },
-  {
-    id: 'presentation',
-    title: 'Business Presentation',
-    description: 'Deliver a clear and engaging presentation to your team.',
-    prompt: 'Present a new product idea to your team. Explain the problem it solves and its key features.',
-  },
-  {
-    id: 'conversation',
-    title: 'Casual Conversation',
-    description: 'Practice natural conversation skills for everyday situations.',
-    prompt: 'Have a conversation about your hobbies and interests. Keep it natural and engaging.',
+    description: 'Practice answering common interview questions with confidence',
+    icon: Briefcase,
+    iconClass: 'bg-gradient-to-br from-blue-500 to-cyan-500 group-hover:from-blue-600 group-hover:to-cyan-600',
   },
   {
     id: 'elevator-pitch',
     title: 'Elevator Pitch',
-    description: 'Master the art of introducing yourself in 60 seconds.',
-    prompt: 'Give a 60-second pitch about yourself, your background, and what makes you unique.',
+    description: 'Master the art of introducing yourself in 60 seconds',
+    icon: Rocket,
+    iconClass: 'bg-gradient-to-br from-purple-500 to-pink-500 group-hover:from-purple-600 group-hover:to-pink-600',
+  },
+  {
+    id: 'business-presentation',
+    title: 'Business Presentation',
+    description: 'Deliver a clear and engaging presentation to your team',
+    icon: Presentation,
+    iconClass: 'bg-gradient-to-br from-orange-500 to-red-500 group-hover:from-orange-600 group-hover:to-red-600',
+  },
+  {
+    id: 'casual-conversation',
+    title: 'Casual Conversation',
+    description: 'Practice natural conversation skills for everyday situations',
+    icon: MessageCircle,
+    iconClass: 'bg-gradient-to-br from-green-500 to-emerald-500 group-hover:from-green-600 group-hover:to-emerald-600',
   },
 ];
 
-export default function PracticePage() {
+export default function PracticeSelectionPage() {
   const router = useRouter();
-  const [selectedScenario, setSelectedScenario] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [processingStatus, setProcessingStatus] = useState<string>('');
-  const [recordingId, setRecordingId] = useState<string | null>(null);
-
-  const handleUploadComplete = async (uploadedRecordingId: string) => {
-    setRecordingId(uploadedRecordingId);
-    setIsProcessing(true);
-    setProcessingStatus('Uploading video...');
-
-    try {
-      // Start processing pipeline
-      setProcessingStatus('Processing video...');
-      const response = await fetch('/api/process', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recordingId: uploadedRecordingId }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Processing failed');
-      }
-
-      const result = await response.json();
-
-      if (result.error) {
-        setProcessingStatus(`Error: ${result.error}`);
-      } else {
-        setProcessingStatus('Processing complete!');
-        // Redirect to feedback page after a short delay
-        setTimeout(() => {
-          router.push(`/feedback/${uploadedRecordingId}`);
-        }, 1500);
-      }
-    } catch (error) {
-      console.error('Processing error:', error);
-      setProcessingStatus('Failed to process recording. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2">Practice Session</h1>
-          <p className="text-muted-foreground">
-            Record yourself practicing and get AI-powered feedback
+      <div className="max-w-5xl mx-auto">
+        {/* Header */}
+        <div className="mb-10">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push('/dashboard')}
+            className="mb-6"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h1 className="text-4xl font-bold mb-3">Choose a Practice Scenario</h1>
+          <p className="text-lg text-muted-foreground">
+            Select the type of practice session you want to start
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Recording Area */}
-          <div className="lg:col-span-2">
-            <VideoRecorder onUploadComplete={handleUploadComplete} />
-            
-            {/* Processing Status */}
-            {isProcessing && (
-              <Card className="mt-4">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                    <div>
-                      <p className="font-medium">Processing your recording...</p>
-                      <p className="text-sm text-muted-foreground">{processingStatus}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {recordingId && !isProcessing && processingStatus.includes('complete') && (
-              <Card className="mt-4 border-green-200 dark:border-green-800">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
-                    <div>
-                      <p className="font-medium text-green-600 dark:text-green-400">
-                        Processing complete!
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Redirecting to feedback page...
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {recordingId && !isProcessing && processingStatus.includes('Error') && (
-              <Card className="mt-4 border-red-200 dark:border-red-800">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                    <div>
-                      <p className="font-medium text-red-600 dark:text-red-400">
-                        {processingStatus}
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-2"
-                        onClick={() => router.push(`/feedback/${recordingId}`)}
-                      >
-                        View Recording Anyway
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Practice Scenarios Sidebar */}
-          <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Practice Scenarios</CardTitle>
-                <CardDescription>
-                  Choose a scenario to practice with
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {practiceScenarios.map((scenario) => (
-                  <Card
-                    key={scenario.id}
-                    className={`cursor-pointer transition-colors ${
-                      selectedScenario === scenario.id
-                        ? 'border-primary bg-primary/5'
-                        : 'hover:border-primary/50'
-                    }`}
-                    onClick={() => setSelectedScenario(scenario.id)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="font-semibold">{scenario.title}</h3>
-                        {selectedScenario === scenario.id && (
-                          <Badge variant="default">Selected</Badge>
-                        )}
+        {/* Practice Scenario Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {practiceScenarios.map((scenario) => {
+            const Icon = scenario.icon;
+            return (
+              <Link key={scenario.id} href={`/practice/${scenario.id}`}>
+                <Card className="group cursor-pointer h-full border-2 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-1">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className={`p-3 rounded-lg ${scenario.iconClass} transition-all duration-300`}>
+                        <Icon className="w-6 h-6 text-white" />
                       </div>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {scenario.description}
-                      </p>
-                      {selectedScenario === scenario.id && (
-                        <div className="mt-3 p-3 bg-muted rounded-md">
-                          <p className="text-sm font-medium mb-1">Prompt:</p>
-                          <p className="text-sm italic">{scenario.prompt}</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
+                      <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                    </div>
+                    <CardTitle className="text-2xl mb-2">{scenario.title}</CardTitle>
+                    <CardDescription className="text-base">
+                      {scenario.description}
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
+            );
+          })}
         </div>
       </div>
     </div>
