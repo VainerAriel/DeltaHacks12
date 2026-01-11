@@ -41,7 +41,7 @@ except ImportError:
 # Configuration
 # Check for API key in environment variables (common names) or use hardcoded key
 # Now supports .env files via python-dotenv
-GOOGLE_API_KEY = os.getenv("GOOGLE_GEMINI_API_KEY") or os.getenv("GOOGLE_GEMINI_API_KEY") or os.getenv("GOOGLE_GEMINI_API_KEY") or "AIzaSyDMA38E16YLcQt8hmgnTKJq0sgBkwYfMJE"
+GOOGLE_API_KEY = os.getenv("GOOGLE_GEMINI_API_KEY") or os.getenv("GOOGLE_GEMINI_API_KEY") or os.getenv("GOOGLE_GEMINI_API_KEY") or ""
 
 # If not set via environment variable, uncomment and set below:
 # GOOGLE_API_KEY = "your-api-key-here"
