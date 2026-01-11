@@ -3,6 +3,7 @@ import { getDb, collections } from '@/lib/db/mongodb';
 import { transcribeAudio } from '@/lib/elevenlabs/transcribe';
 import { RecordingStatus } from '@/types/recording';
 import { ObjectId } from 'mongodb';
+import { getPresignedUrl } from '@/lib/s3/presigned-url';
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,7 +56,8 @@ export async function POST(request: NextRequest) {
 
     try {
       // Transcribe audio using ElevenLabs
-      const videoUrl = recording.videoUrl;
+      // Generate presigned URL if it's an S3 URL
+      const videoUrl = await getPresignedUrl(recording.videoUrl);
       const transcription = await transcribeAudio(videoUrl);
       transcription.recordingId = recordingId;
 

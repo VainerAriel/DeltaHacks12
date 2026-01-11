@@ -15,6 +15,7 @@ import { Transcription } from '@/types/transcription';
 import { Recording } from '@/types/recording';
 import { Loader2, ArrowLeft, RotateCcw, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 
+
 export default function FeedbackPage() {
   const params = useParams();
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function FeedbackPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const [recording, setRecording] = useState<Recording | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [biometricData, setBiometricData] = useState<BiometricData | null>(null);
   const [transcription, setTranscription] = useState<Transcription | null>(null);
   const [feedback, setFeedback] = useState<FeedbackReport | null>(null);
@@ -47,6 +49,27 @@ export default function FeedbackPage() {
       if (!recordingRes.ok) throw new Error('Failed to fetch recording');
       const recordingData = await recordingRes.json();
       setRecording(recordingData);
+      
+      // Generate presigned URL if it's an S3 URL
+      if (recordingData.videoUrl) {
+        try {
+          const presignedRes = await fetch('/api/videos/presigned', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ videoUrl: recordingData.videoUrl }),
+          });
+          if (presignedRes.ok) {
+            const { presignedUrl } = await presignedRes.json();
+            setVideoUrl(presignedUrl);
+          } else {
+            // Fallback to original URL if presigned URL generation fails
+            setVideoUrl(recordingData.videoUrl);
+          }
+        } catch (error) {
+          console.error('Failed to get presigned URL:', error);
+          setVideoUrl(recordingData.videoUrl);
+        }
+      }
 
       // Check if this is part of a session
       if (recordingData.sessionId) {
@@ -124,6 +147,26 @@ export default function FeedbackPage() {
     setCurrentQuestionIndex(index);
     const targetRecording = sessionRecordings[index];
     setRecording(targetRecording);
+    
+    // Generate presigned URL for the new recording
+    if (targetRecording.videoUrl) {
+      try {
+        const presignedRes = await fetch('/api/videos/presigned', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoUrl: targetRecording.videoUrl }),
+        });
+        if (presignedRes.ok) {
+          const { presignedUrl } = await presignedRes.json();
+          setVideoUrl(presignedUrl);
+        } else {
+          setVideoUrl(targetRecording.videoUrl);
+        }
+      } catch (error) {
+        console.error('Failed to get presigned URL:', error);
+        setVideoUrl(targetRecording.videoUrl);
+      }
+    }
     
     // Load data for the new recording
     await loadRecordingData(targetRecording.id);
@@ -332,10 +375,10 @@ export default function FeedbackPage() {
               <CardDescription>Click on the chart timeline to jump to specific moments</CardDescription>
             </CardHeader>
             <CardContent>
-              {recording.videoUrl ? (
+              {videoUrl ? (
                 <video
                   ref={videoRef}
-                  src={recording.videoUrl}
+                  src={videoUrl}
                   controls
                   className="w-full rounded-lg"
                   preload="metadata"
@@ -349,9 +392,9 @@ export default function FeedbackPage() {
                     }
                   }}
                 >
-                  <source src={recording.videoUrl} type="video/webm" />
-                  <source src={recording.videoUrl} type="video/mp4" />
-                  <source src={recording.videoUrl} type="video/quicktime" />
+                  <source src={videoUrl} type="video/webm" />
+                  <source src={videoUrl} type="video/mp4" />
+                  <source src={videoUrl} type="video/quicktime" />
                   Your browser does not support the video tag.
                 </video>
               ) : (
