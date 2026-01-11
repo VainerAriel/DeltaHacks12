@@ -179,15 +179,18 @@ export default function FeedbackPage() {
 
       // Check if this is part of a session
       if (recordingData.sessionId) {
+        console.log('[FeedbackPage] Recording has sessionId:', recordingData.sessionId);
         setIsSessionMode(true);
         // Fetch all recordings in the session
         const sessionRes = await fetch(`/api/recordings/session/${recordingData.sessionId}`);
         if (sessionRes.ok) {
           const sessionData = await sessionRes.json();
+          console.log('[FeedbackPage] Session data loaded:', sessionData.length, 'recordings');
           setSessionRecordings(sessionData);
           
           // Find the index of the current recording
           const currentIndex = sessionData.findIndex((r: Recording) => r.id === recordingId);
+          console.log('[FeedbackPage] Current recording index:', currentIndex, 'out of', sessionData.length);
           if (currentIndex !== -1) {
             setCurrentQuestionIndex(currentIndex);
           }

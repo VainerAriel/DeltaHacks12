@@ -3,6 +3,7 @@ import { uploadVideoToS3 } from '@/lib/s3/upload';
 import { getDb } from '@/lib/db/mongodb';
 import { ObjectId } from 'mongodb';
 import { getUserIdFromRequest } from '@/lib/auth';
+import { RecordingStatus } from '@/types/recording';
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,6 +19,8 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file = formData.get('video') as File;
+    const sessionId = formData.get('sessionId') as string | null;
+    const questionText = formData.get('questionText') as string | null;
 
     if (!file) {
       return NextResponse.json(
@@ -54,16 +57,26 @@ export async function POST(req: NextRequest) {
 
     // Save to database
     const db = await getDb();
-    await db.collection('recordings').insertOne({
+    const recordingData: any = {
       _id: recordingObjectId,
       id: recordingId,
       userId,
       videoUrl,
       fileName,
       duration: 0, // Will be updated after FFmpeg processing
-      status: 'UPLOADING',
+      status: RecordingStatus.UPLOADING,
       createdAt: new Date(),
-    });
+    };
+    
+    // Add sessionId and questionText if provided (for interview sessions)
+    if (sessionId) {
+      recordingData.sessionId = sessionId;
+    }
+    if (questionText) {
+      recordingData.questionText = questionText;
+    }
+    
+    await db.collection('recordings').insertOne(recordingData);
 
     return NextResponse.json({
       success: true,
