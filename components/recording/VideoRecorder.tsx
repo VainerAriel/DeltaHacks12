@@ -11,12 +11,14 @@ interface VideoRecorderProps {
   onUploadComplete?: (recordingId: string) => void;
   sessionId?: string;
   questionText?: string;
+  maxDuration?: number; // Maximum recording duration in seconds
 }
 
-export default function VideoRecorder({ onRecordingComplete, onUploadComplete, sessionId, questionText }: VideoRecorderProps) {
+export default function VideoRecorder({ onRecordingComplete, onUploadComplete, sessionId, questionText, maxDuration }: VideoRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordedTime, setRecordedTime] = useState(0);
+  const [remainingTime, setRemainingTime] = useState<number | null>(null);
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -27,6 +29,7 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete, s
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -34,6 +37,10 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete, s
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
+      }
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
       }
       if (videoUrl) {
         URL.revokeObjectURL(videoUrl);
@@ -98,10 +105,33 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete, s
       setIsRecording(true);
       setRecordedTime(0);
 
+      // Initialize countdown timer if maxDuration is provided
+      if (maxDuration) {
+        setRemainingTime(maxDuration);
+      }
+
       // Start timer
       timerRef.current = setInterval(() => {
         setRecordedTime((prev) => prev + 1);
       }, 1000);
+
+      // Start countdown timer if maxDuration is provided (update every 100ms for smooth animation)
+      if (maxDuration) {
+        countdownTimerRef.current = setInterval(() => {
+          setRemainingTime((prev) => {
+            if (prev === null || prev <= 0.1) {
+              // Stop recording when countdown reaches 0
+              if (countdownTimerRef.current) {
+                clearInterval(countdownTimerRef.current);
+                countdownTimerRef.current = null;
+              }
+              stopRecording();
+              return 0;
+            }
+            return prev - 0.1;
+          });
+        }, 100);
+      }
     } catch (err) {
       setError('Failed to access camera/microphone. Please check permissions.');
       console.error('Error accessing media devices:', err);
@@ -120,12 +150,37 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete, s
         timerRef.current = setInterval(() => {
           setRecordedTime((prev) => prev + 1);
         }, 1000);
+        // Resume countdown timer if maxDuration is provided (update every 100ms for smooth animation)
+        if (maxDuration && remainingTime !== null && remainingTime > 0) {
+          if (countdownTimerRef.current) {
+            clearInterval(countdownTimerRef.current);
+          }
+          countdownTimerRef.current = setInterval(() => {
+            setRemainingTime((prev) => {
+              if (prev === null || prev <= 0.1) {
+                // Stop recording when countdown reaches 0
+                if (countdownTimerRef.current) {
+                  clearInterval(countdownTimerRef.current);
+                  countdownTimerRef.current = null;
+                }
+                stopRecording();
+                return 0;
+              }
+              return prev - 0.1;
+            });
+          }, 100);
+        }
       } else {
         mediaRecorderRef.current.pause();
         setIsPaused(true);
         if (timerRef.current) {
           clearInterval(timerRef.current);
           timerRef.current = null;
+        }
+        // Pause countdown timer
+        if (countdownTimerRef.current) {
+          clearInterval(countdownTimerRef.current);
+          countdownTimerRef.current = null;
         }
       }
     }
@@ -140,6 +195,11 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete, s
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
+      setRemainingTime(null);
     }
   };
 
@@ -304,6 +364,17 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete, s
                   <p>Camera preview will appear here</p>
                   <p className="text-sm mt-2">or drag and drop a video file</p>
                 </div>
+              </div>
+            )}
+            {/* Countdown Progress Bar Overlay */}
+            {isRecording && maxDuration && remainingTime !== null && (
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/30">
+                <div
+                  className="h-full bg-red-500 transition-all duration-100"
+                  style={{
+                    width: `${(remainingTime / maxDuration) * 100}%`,
+                  }}
+                />
               </div>
             )}
           </div>

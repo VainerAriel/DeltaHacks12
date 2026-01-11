@@ -5,9 +5,23 @@ import { MongoClient, Db, ServerApiVersion } from 'mongodb';
 const getMongoOptions = () => {
   const uri = process.env.MONGODB_URI || '';
   
+  const baseOptions = {
+    // Connection pool options
+    maxPoolSize: 10,
+    minPoolSize: 1,
+    // Timeout options (in milliseconds)
+    connectTimeoutMS: 30000, // 30 seconds
+    serverSelectionTimeoutMS: 30000, // 30 seconds
+    socketTimeoutMS: 45000, // 45 seconds
+    // Retry options
+    retryWrites: true,
+    retryReads: true,
+  };
+  
   // If using MongoDB Atlas (mongodb+srv://), use ServerApiVersion
   if (uri.startsWith('mongodb+srv://')) {
     return {
+      ...baseOptions,
       serverApi: {
         version: ServerApiVersion.v1,
         strict: true,
@@ -16,8 +30,8 @@ const getMongoOptions = () => {
     };
   }
   
-  // For local MongoDB, use default options
-  return {};
+  // For local MongoDB, use base options
+  return baseOptions;
 };
 
 let client: MongoClient | null = null;
