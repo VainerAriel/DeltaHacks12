@@ -64,15 +64,17 @@ export async function POST(request: NextRequest) {
       { $set: { status: RecordingStatus.ANALYZING } }
     );
 
-    // Get questionText from recording if available
+    // Get questionText and duration from recording if available
     const questionText = recording?.questionText;
+    const duration = recording?.duration || 0;
 
     // Analyze presentation
     const feedbackReport = await analyzePresentation(
       biometricData as BiometricData,
       transcription as Transcription,
       scenario,
-      questionText
+      questionText,
+      duration
     );
     feedbackReport.recordingId = recordingId;
 

@@ -1,7 +1,23 @@
+export interface SectorScore {
+  score: number; // 0-100
+  feedback: string;
+}
+
 export interface FeedbackReport {
   id: string;
   recordingId: string;
-  overallScore: number; // 1-100
+  overallScore: number; // Calculated as average of 6 sector scores
+  sectorScores?: {
+    tone: SectorScore;
+    fluency: SectorScore;
+    vocabulary: SectorScore;
+    pronunciation: SectorScore;
+    engagement: SectorScore;
+    confidence: SectorScore;
+  };
+  confidenceData?: Array<{ timestamp: number; confidence: number }>;
+  engagementData?: Array<{ timestamp: number; engagement: number }>;
+  // Keep existing fields for backward compatibility
   biometricInsights: {
     heartRateAnalysis: string;
     breathingPattern: string;

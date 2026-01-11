@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import BiometricChart from '@/components/feedback/BiometricChart';
 import SpeechAnalysis from '@/components/feedback/SpeechAnalysis';
+import SectorAnalysis from '@/components/feedback/SectorAnalysis';
 import { FeedbackReport } from '@/types/feedback';
 import { BiometricData } from '@/types/biometrics';
 import { Transcription } from '@/types/transcription';
@@ -250,7 +251,9 @@ export default function FeedbackPage() {
                 <div>
                   <h2 className="text-2xl font-semibold mb-2">Overall Score</h2>
                   <p className="text-muted-foreground">
-                    Based on biometric data and speech analysis
+                    {feedback.sectorScores 
+                      ? 'Average of 6 Sector Scores'
+                      : 'Based on biometric data and speech analysis'}
                   </p>
                 </div>
                 <div className="text-center">
@@ -367,6 +370,16 @@ export default function FeedbackPage() {
 
         {/* Speech Analysis */}
         {transcription && <SpeechAnalysis transcription={transcription} />}
+
+        {/* Sector Analysis */}
+        {feedback && feedback.sectorScores && (
+          <SectorAnalysis 
+            sectorScores={feedback.sectorScores}
+            confidenceData={feedback.confidenceData}
+            engagementData={feedback.engagementData}
+            onTimeClick={handleTimeClick}
+          />
+        )}
 
         {/* Insights and Recommendations */}
         {feedback && (
