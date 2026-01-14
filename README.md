@@ -1,11 +1,10 @@
-# ESL Speech Coaching Platform
+# Fluency Lab
 
-An AI-powered speech coaching platform for ESL learners built with Next.js 14, TypeScript, and Tailwind CSS.
+An AI-powered speech coaching platform.
 
 ## Features
 
 - 🎥 **Video Recording**: Record practice sessions using webcam or upload pre-recorded videos
-- 📊 **Biometric Analysis**: Track heart rate, breathing patterns, and facial expressions (Presage integration)
 - 🎤 **Speech Transcription**: Automatic transcription using ElevenLabs Speech-to-Text
 - 🤖 **AI Feedback**: Comprehensive analysis using Google Gemini AI
 - 📈 **Progress Tracking**: View your improvement over time with detailed analytics
@@ -30,7 +29,7 @@ An AI-powered speech coaching platform for ESL learners built with Next.js 14, T
 - ElevenLabs API key (required)
 - Google Gemini API key (required)
 
-### Installation
+### Local Installation
 
 1. Clone the repository:
 ```bash
