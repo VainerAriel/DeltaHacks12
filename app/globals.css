@@ -53,13 +53,18 @@
   * {
     @apply border-border;
   }
-  body {
-    @apply text-foreground;
-    background-image: url('/Group 42.png');
+  html {
+    background-image: url("/background.png");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
     background-attachment: fixed;
     min-height: 100vh;
+  }
+  
+  body {
+    @apply text-foreground;
+    min-height: 100vh;
+    background-color: transparent;
   }
 }

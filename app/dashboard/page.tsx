@@ -1,16 +1,103 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Recording, RecordingStatus } from '@/types/recording';
 import { FeedbackReport } from '@/types/feedback';
 import { Video, Plus, TrendingUp, Loader2, LogOut } from 'lucide-react';
+
+// Dynamically import recharts to reduce initial bundle size and compilation time
+const ProgressChart = dynamic(
+  () => import('recharts').then((mod) => {
+    const { LineChart, Line, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = mod;
+    return function ProgressChartComponent({ data }: { data: Array<{ date: string; score: number; timestamp: number; sessionNumber?: number; fullDate?: string }> }) {
+      // Custom tooltip with better formatting
+      const CustomTooltip = ({ active, payload }: any) => {
+        if (active && payload && payload.length) {
+          const data = payload[0].payload;
+          return (
+            <div className="bg-background border border-border rounded-lg shadow-lg p-3">
+              <p className="text-sm font-semibold mb-1">{data.fullDate || data.date}</p>
+              {data.sessionNumber && (
+                <p className="text-xs text-muted-foreground mb-1">Session #{data.sessionNumber}</p>
+              )}
+              <p className="text-sm">
+                <span className="font-medium text-primary">Score: </span>
+                <span className="font-bold">{data.score}/100</span>
+              </p>
+            </div>
+          );
+        }
+        return null;
+      };
+
+      // Format X-axis label - show session number
+      const formatXAxisLabel = (value: any) => {
+        return `Session ${value}`;
+      };
+
+      return (
+        <ResponsiveContainer width="100%" height={350}>
+          <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" opacity={0.3} />
+            <XAxis 
+              dataKey="sessionNumber" 
+              tickFormatter={formatXAxisLabel}
+              stroke="hsl(var(--muted-foreground))"
+              style={{ fontSize: '12px' }}
+              type="number"
+              domain={[0.5, 'dataMax + 0.5']}
+              allowDecimals={false}
+              interval={0}
+              ticks={data.map((_, index) => index + 1)}
+            />
+            <YAxis 
+              domain={[0, 100]} 
+              stroke="hsl(var(--muted-foreground))"
+              style={{ fontSize: '12px' }}
+              label={{ value: 'Score', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: 'hsl(var(--muted-foreground))' } }}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Area
+              type="monotone"
+              dataKey="score"
+              stroke="#3b82f6"
+              strokeWidth={3}
+              fill="url(#scoreGradient)"
+              name="Score"
+              dot={{ r: 5, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+              activeDot={{ r: 7, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+            />
+            <Line
+              type="monotone"
+              dataKey="score"
+              stroke="#3b82f6"
+              strokeWidth={2}
+              dot={false}
+              strokeDasharray="0"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      );
+    };
+  }),
+  { 
+    ssr: false, // Disable SSR for charts (they're client-only anyway)
+    loading: () => <div className="h-[350px] flex items-center justify-center text-muted-foreground">Loading chart...</div>
+  }
+);
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -51,6 +138,10 @@ export default function DashboardPage() {
   }, [router]);
 
   useEffect(() => {
+    // Clear global loading state when dashboard loads
+    sessionStorage.removeItem('globalLoading');
+    sessionStorage.removeItem('loadingMessage');
+    
     // Fetch user and recordings in parallel for better performance
     Promise.all([fetchUser(), fetchRecordings()]);
   }, [fetchUser, fetchRecordings]);
@@ -62,18 +153,18 @@ export default function DashboardPage() {
       });
       
       if (response.ok) {
-        // Clear user state and redirect to login
+        // Clear user state and redirect to home
         setUser(null);
-        router.push('/login');
+        router.push('/');
       } else {
         console.error('Logout failed');
-        // Still redirect to login even if API call fails
-        router.push('/login');
+        // Still redirect to home even if API call fails
+        router.push('/');
       }
     } catch (error) {
       console.error('Error during logout:', error);
-      // Still redirect to login even if there's an error
-      router.push('/login');
+      // Still redirect to home even if there's an error
+      router.push('/');
     }
   };
 
@@ -149,19 +240,50 @@ export default function DashboardPage() {
 
   const displayRecordings = processRecordings();
 
-  // Prepare data for progress chart
+  // Prepare data for progress chart - sort by actual timestamp, not date string
   const progressData = displayRecordings
     .filter((r) => r.feedback)
-    .map((r) => ({
-      date: new Date(r.createdAt).toLocaleDateString(),
-      score: r.feedback?.overallScore || 0,
-    }))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .map((r, index) => {
+      const date = new Date(r.createdAt);
+      return {
+        date: date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric',
+          year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+        }),
+        score: r.feedback?.overallScore || 0,
+        timestamp: date.getTime(),
+        sessionNumber: index + 1,
+        fullDate: date.toLocaleDateString('en-US', { 
+          weekday: 'short',
+          month: 'short', 
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit'
+        }),
+      };
+    })
+    // Sort by timestamp (oldest first) to show chronological progression
+    .sort((a, b) => a.timestamp - b.timestamp)
+    // Update session numbers after sorting
+    .map((item, index) => ({
+      ...item,
+      sessionNumber: index + 1,
+    }));
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="text-center space-y-4">
+          <div className="relative">
+            <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
+          </div>
+          <div className="space-y-2">
+            <p className="text-lg font-semibold">Loading Dashboard</p>
+            <p className="text-sm text-muted-foreground">Fetching your practice sessions...</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -273,23 +395,7 @@ export default function DashboardPage() {
               <CardDescription>See how far you've come on your speaking journey</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={progressData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis domain={[0, 100]} />
-                  <Tooltip />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="score"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                    name="Score"
-                    dot={{ r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <ProgressChart data={progressData} />
             </CardContent>
           </Card>
         )}

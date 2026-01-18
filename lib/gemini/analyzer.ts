@@ -179,6 +179,103 @@ export async function analyzePresentation(
   // Use duration from recording, or estimate from transcription if not provided
   const videoDuration = duration || actualDuration || Math.max(30, Math.ceil(transcription.text.length / 10)); // Rough estimate: 10 chars per second
 
+  // Detect empty or minimal content
+  const textLength = transcription.text.trim().length;
+  const wpm = transcription.metrics.wpm || 0;
+  const hasNoContent = textLength < 10 || wpm < 5 || transcription.words.length === 0;
+
+  // If no content detected, return low scores without calling Gemini
+  if (hasNoContent) {
+    console.log('[Gemini] No content detected - text length:', textLength, 'wpm:', wpm, 'words:', transcription.words.length);
+    
+    const noContentScore = 5; // Very low score for no content
+    const noContentFeedback = 'No speech or meaningful content was detected in this recording. Please ensure your microphone is working and that you are speaking clearly.';
+    
+    // Generate per-second data with low scores
+    const confidenceData: Array<{ timestamp: number; confidence: number }> = [];
+    const engagementData: Array<{ timestamp: number; engagement: number }> = [];
+    for (let i = 0; i < videoDuration; i++) {
+      confidenceData.push({ timestamp: i, confidence: noContentScore });
+      engagementData.push({ timestamp: i, engagement: noContentScore });
+    }
+
+    const feedbackReport: FeedbackReport = {
+      id: `feedback-${Date.now()}`,
+      recordingId: '', // Will be set by caller
+      overallScore: noContentScore,
+      sectorScores: {
+        tone: { 
+          score: noContentScore, 
+          feedback: 'No speech was detected, so tone cannot be assessed. Please record audio with clear speech.' 
+        },
+        fluency: { 
+          score: noContentScore, 
+          feedback: 'No speech was detected, so fluency cannot be assessed. Please ensure your microphone is working and speak clearly.' 
+        },
+        vocabulary: { 
+          score: noContentScore, 
+          feedback: 'No speech was detected, so vocabulary cannot be assessed. Please record audio with clear speech.' 
+        },
+        pronunciation: { 
+          score: noContentScore, 
+          feedback: 'No speech was detected, so pronunciation cannot be assessed. Please ensure your microphone is working and speak clearly.' 
+        },
+        engagement: { 
+          score: noContentScore, 
+          feedback: 'No speech or visual content was detected. Engagement requires delivering content, showing enthusiasm, and connecting with your audience.' 
+        },
+        confidence: { 
+          score: noContentScore, 
+          feedback: 'No speech or visual cues were detected. Confidence is demonstrated through clear voice delivery, strong posture, eye contact, and composed presence.' 
+        },
+      },
+      confidenceData,
+      engagementData,
+      speechInsights: {
+        wpm: 0,
+        fillerWordsCount: 0,
+        pauseAnalysis: 'No speech detected.',
+        clarityScore: 0,
+        pronunciationNotes: 'No speech was recorded.',
+      },
+      recommendations: [
+        {
+          category: 'general',
+          title: 'Check Audio Recording',
+          description: 'No speech was detected in your recording. Please check that your microphone is working properly and try recording again with clear speech.',
+          priority: 'high',
+        },
+      ],
+      createdAt: new Date(),
+    };
+
+    // Add duration feedback if needed
+    if (actualDuration !== undefined && (minDuration !== undefined || maxDuration !== undefined)) {
+      const tooShort = minDuration !== undefined && actualDuration < minDuration;
+      const tooLong = maxDuration !== undefined && actualDuration > maxDuration;
+      
+      if (tooShort || tooLong) {
+        let feedbackText = '';
+        if (tooShort) {
+          feedbackText = `Your recording is ${minDuration - actualDuration} seconds too short. Additionally, no speech was detected. Please record again with clear speech and ensure you meet the minimum duration of ${minDuration} seconds.`;
+        } else if (tooLong) {
+          feedbackText = `Your recording is ${actualDuration - maxDuration} seconds too long. Additionally, no speech was detected. Please record again with clear speech and ensure you meet the maximum duration of ${maxDuration} seconds.`;
+        }
+        
+        feedbackReport.durationFeedback = {
+          actual: actualDuration,
+          target: {
+            ...(minDuration !== undefined && { min: minDuration }),
+            ...(maxDuration !== undefined && { max: maxDuration }),
+          },
+          feedback: feedbackText,
+        };
+      }
+    }
+
+    return feedbackReport;
+  }
+
   // Load base prompt
   const basePrompt = loadBasePrompt();
 
@@ -276,18 +373,38 @@ export async function analyzePresentation(
           }
 
           // Extract sector scores
-          const toneScore = parsed.ToneScore || parsed.toneScore || 70;
+          let toneScore = parsed.ToneScore || parsed.toneScore || 70;
           const toneFeedback = parsed.ToneFeedback || parsed.toneFeedback || '';
-          const fluencyScore = parsed.FluencyScore || parsed.fluencyScore || 70;
+          let fluencyScore = parsed.FluencyScore || parsed.fluencyScore || 70;
           const fluencyFeedback = parsed.FluencyFeedback || parsed.fluencyFeedback || '';
           const vocabularyScore = parsed.VocabularyScore || parsed.vocabularyScore || 70;
           const vocabularyFeedback = parsed.VocabularyFeedback || parsed.vocabularyFeedback || '';
-          const pronunciationScore = parsed.PronunciationScore || parsed.pronunciationScore || 70;
+          let pronunciationScore = parsed.PronunciationScore || parsed.pronunciationScore || 70;
           const pronunciationFeedback = parsed.PronunciationFeedback || parsed.pronunciationFeedback || '';
-          const engagementScore = parsed.EngagementScore || parsed.engagementScore || 70;
+          let engagementScore = parsed.EngagementScore || parsed.engagementScore || 70;
           const engagementFeedback = parsed.EngagementFeedback || parsed.engagementFeedback || '';
-          const confidenceScore = parsed.ConfidenceScore || parsed.confidenceScore || 70;
+          let confidenceScore = parsed.ConfidenceScore || parsed.confidenceScore || 70;
           const confidenceFeedback = parsed.ConfidenceFeedback || parsed.confidenceFeedback || '';
+
+          // Post-processing: Adjust scores to be more balanced when content is strong
+          // If vocabulary is high (indicating good content), don't let delivery issues tank other scores too much
+          if (vocabularyScore >= 85) {
+            // Boost scores that might be unfairly low due to speed issues
+            if (toneScore < 70) toneScore = Math.min(70, toneScore + 5);
+            if (pronunciationScore < 65) pronunciationScore = Math.min(65, pronunciationScore + 5);
+            if (engagementScore < 60) engagementScore = Math.min(60, engagementScore + 8);
+            if (confidenceScore < 65) confidenceScore = Math.min(65, confidenceScore + 5);
+            // Fluency can still be lower if speed is an issue, but not too harsh
+            if (fluencyScore < 50) fluencyScore = Math.min(50, fluencyScore + 5);
+          }
+
+          // Ensure scores aren't too harsh for good content - minimum floors
+          // If vocabulary and pronunciation are both good, other scores should reflect that
+          if (vocabularyScore >= 80 && pronunciationScore >= 60) {
+            if (toneScore < 60) toneScore = 60;
+            if (engagementScore < 55) engagementScore = 55;
+            if (confidenceScore < 60) confidenceScore = 60;
+          }
 
           // Calculate overall score as average of 6 sector scores
           const overallScore = Math.round(

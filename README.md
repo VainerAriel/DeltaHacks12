@@ -71,7 +71,6 @@ npm run dev
 │   │   └── register/
 │   ├── api/             # API routes
 │   │   ├── upload/      # Video upload endpoint
-│   │   ├── presage/     # Biometric processing
 │   │   ├── whisper/     # Transcription (ElevenLabs)
 │   │   ├── gemini/      # AI analysis
 │   │   └── process/     # Full pipeline
@@ -80,11 +79,10 @@ npm run dev
 │   └── feedback/[id]/   # Feedback report page
 ├── components/
 │   ├── recording/       # VideoRecorder component
-│   ├── feedback/        # BiometricChart, SpeechAnalysis
+│   ├── feedback/        # SpeechAnalysis
 │   └── ui/              # shadcn/ui components
 ├── lib/
 │   ├── db/              # MongoDB connection
-│   ├── presage/         # Presage SDK integration (TODO)
 │   ├── elevenlabs/      # ElevenLabs transcription
 │   └── gemini/          # Gemini analysis
 └── types/               # TypeScript type definitions
@@ -93,31 +91,13 @@ npm run dev
 ## Processing Pipeline
 
 1. **Upload**: Video is uploaded and stored (S3 or local)
-2. **Extract Biometrics**: Presage SDK processes video for biometric data
-3. **Transcribe**: ElevenLabs Speech-to-Text transcribes the audio
-4. **Analyze**: Google Gemini generates comprehensive feedback
-5. **Display**: User views detailed feedback report
-
-## Presage Integration
-
-The Presage SDK integration is currently using mock data. To integrate the actual Presage SDK:
-
-1. Review the TODO comments in `lib/presage/processor.ts`
-2. Install the Presage SDK package
-3. Update `processPresageData()` function with actual SDK calls
-4. Map Presage response format to our `BiometricData` interface
-
-Key questions to clarify with Presage team:
-- SDK API structure and authentication
-- Video format requirements
-- Response data format
-- Processing time estimates
-- Rate limits
+2. **Transcribe**: ElevenLabs Speech-to-Text transcribes the audio
+3. **Analyze**: Google Gemini generates comprehensive feedback
+4. **Display**: User views detailed feedback report
 
 ## API Routes
 
 - `POST /api/upload` - Upload video file
-- `POST /api/presage` - Process biometric data
 - `POST /api/whisper` - Transcribe audio (using ElevenLabs)
 - `POST /api/gemini` - Generate feedback
 - `POST /api/process` - Run full processing pipeline
@@ -153,18 +133,6 @@ Key questions to clarify with Presage team:
 }
 ```
 
-### BiometricData
-```typescript
-{
-  id: string;
-  recordingId: string;
-  heartRate: number[];
-  breathing: number[];
-  facialExpressions: FacialExpression[];
-  timestamps: number[];
-}
-```
-
 ### Transcriptions
 ```typescript
 {
@@ -183,7 +151,6 @@ Key questions to clarify with Presage team:
   id: string;
   recordingId: string;
   overallScore: number;
-  biometricInsights: {...};
   speechInsights: {...};
   recommendations: Recommendation[];
 }
@@ -192,7 +159,6 @@ Key questions to clarify with Presage team:
 ## Development Notes
 
 - All API routes include error handling with try-catch blocks
-- Presage integration uses placeholder data until SDK is integrated
 - Processing status is tracked through the pipeline
 - TypeScript strict mode is enabled
 - Dark mode support with system preference detection

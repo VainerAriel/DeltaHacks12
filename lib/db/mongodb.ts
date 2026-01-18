@@ -83,7 +83,6 @@ export async function getDb(): Promise<Db> {
 export const collections = {
   users: 'users',
   recordings: 'recordings',
-  biometricData: 'biometricData',
   transcriptions: 'transcriptions',
   feedbackReports: 'feedbackReports',
   referenceDocuments: 'referenceDocuments',

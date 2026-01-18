@@ -28,6 +28,7 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete, s
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [uploadCompleted, setUploadCompleted] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -55,6 +56,7 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete, s
   const startRecording = async () => {
     try {
       setError(null);
+      setUploadCompleted(false); // Reset upload completed state when starting new recording
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true,
@@ -226,6 +228,7 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete, s
     }
 
     setError(null);
+    setUploadCompleted(false); // Reset upload completed state for new file
     setVideoBlob(file);
     const url = URL.createObjectURL(file);
     setVideoUrl(url);
@@ -311,6 +314,9 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete, s
       });
 
       setUploadProgress(100);
+      
+      // Mark upload as completed
+      setUploadCompleted(true);
       
       if (onUploadComplete) {
         onUploadComplete(response.recordingId);
@@ -481,7 +487,7 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete, s
               </>
             )}
 
-            {videoUrl && !isUploading && (
+            {videoUrl && !isUploading && !uploadCompleted && (
               <Button
                 onClick={() => {
                   if (videoBlob) {
@@ -491,17 +497,24 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete, s
                 disabled={!videoBlob}
                 className="gap-2"
               >
-                {isUploading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4" />
-                    Upload Recording
-                  </>
-                )}
+                <Upload className="w-4 h-4" />
+                Upload Recording
+              </Button>
+            )}
+
+            {videoUrl && !isUploading && uploadCompleted && (
+              <Button
+                onClick={() => {
+                  // Reset file input to allow selecting the same file again
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                    fileInputRef.current.click();
+                  }
+                }}
+                className="gap-2"
+              >
+                <Upload className="w-4 h-4" />
+                Upload New Video
               </Button>
             )}
 
@@ -513,6 +526,11 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete, s
                   setVideoBlob(null);
                   setRecordedTime(0);
                   setError(null);
+                  setUploadCompleted(false);
+                  // Reset file input
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                  }
                 }}
               >
                 Reset
