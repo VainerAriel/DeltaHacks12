@@ -184,16 +184,16 @@ export default function DashboardPage() {
       
       if (response.ok) {
         // Force a hard refresh to ensure middleware sees the cleared cookie
-        window.location.href = '/login';
+        window.location.href = '/';
       } else {
         console.error('Logout failed');
-        // Still redirect to login even if API call fails
-        window.location.href = '/login';
+        // Still redirect to home even if API call fails
+        window.location.href = '/';
       }
     } catch (error) {
       console.error('Error during logout:', error);
-      // Still redirect to login even if there's an error
-      window.location.href = '/login';
+      // Still redirect to home even if there's an error
+      window.location.href = '/';
     }
   };
 
