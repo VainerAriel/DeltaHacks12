@@ -166,7 +166,6 @@ export async function POST(req: NextRequest) {
     const recording: Omit<Recording, 'id'> = {
       userId,
       videoUrl,
-      fileName,
       duration: duration || 0, // Use extracted duration or 0
       status: RecordingStatus.UPLOADING,
       createdAt: new Date(),
