@@ -175,21 +175,25 @@ export default function DashboardPage() {
     try {
       const response = await fetch('/api/auth/logout', {
         method: 'POST',
+        credentials: 'include', // Ensure cookies are included
       });
       
+      // Clear user state immediately
+      setUser(null);
+      setRecordings([]);
+      
       if (response.ok) {
-        // Clear user state and redirect to home
-        setUser(null);
-        router.push('/');
+        // Force a hard refresh to ensure middleware sees the cleared cookie
+        window.location.href = '/login';
       } else {
         console.error('Logout failed');
-        // Still redirect to home even if API call fails
-        router.push('/');
+        // Still redirect to login even if API call fails
+        window.location.href = '/login';
       }
     } catch (error) {
       console.error('Error during logout:', error);
-      // Still redirect to home even if there's an error
-      router.push('/');
+      // Still redirect to login even if there's an error
+      window.location.href = '/login';
     }
   };
 

@@ -16,18 +16,24 @@ export function middleware(request: NextRequest) {
   const publicRoutes = ['/', '/login', '/register'];
   const isPublicRoute = publicRoutes.includes(pathname);
   
-  // Check if auth token cookie exists (lightweight check for Edge Runtime)
+  // Check if auth token cookie exists and is valid (lightweight check for Edge Runtime)
   // Full JWT verification happens in API routes and client-side
   const authToken = request.cookies.get('auth-token');
-  const hasAuthToken = !!authToken?.value;
+  const tokenValue = authToken?.value?.trim();
+  
+  // Check if token exists and has a valid JWT structure (three parts separated by dots)
+  // Empty or invalid tokens are treated as no authentication
+  const hasValidAuthToken = tokenValue && 
+    tokenValue.length > 0 && 
+    tokenValue.split('.').length === 3; // Basic JWT structure check
 
-  // If user has auth token and trying to access login/register, redirect to dashboard
-  if (hasAuthToken && (pathname === '/login' || pathname === '/register')) {
+  // If user has valid auth token and trying to access login/register, redirect to dashboard
+  if (hasValidAuthToken && (pathname === '/login' || pathname === '/register')) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // If user doesn't have auth token and trying to access a protected route, redirect to login
-  if (!hasAuthToken && !isPublicRoute) {
+  // If user doesn't have valid auth token and trying to access a protected route, redirect to login
+  if (!hasValidAuthToken && !isPublicRoute) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
