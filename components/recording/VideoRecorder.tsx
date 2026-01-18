@@ -328,7 +328,7 @@ export default function VideoRecorder({ onRecordingComplete, onUploadComplete, s
     } finally {
       setIsUploading(false);
     }
-  }, [onUploadComplete, sessionId, questionText, referenceDocumentId, minDuration, maxDuration]);
+  }, [onUploadComplete, sessionId, questionText, referenceDocumentId, minDuration, maxDuration, scenario]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);

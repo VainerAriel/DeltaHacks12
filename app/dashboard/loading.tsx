@@ -17,7 +17,7 @@ export default function DashboardLoading() {
       setMessageIndex((prev) => (prev + 1) % messages.length);
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [messages.length]);
 
   const currentMessage = messages[messageIndex];
 

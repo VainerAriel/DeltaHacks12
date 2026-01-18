@@ -392,7 +392,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Progress Over Time</CardTitle>
-              <CardDescription>See how far you've come on your speaking journey</CardDescription>
+              <CardDescription>See how far you&apos;ve come on your speaking journey</CardDescription>
             </CardHeader>
             <CardContent>
               <ProgressChart data={progressData} />

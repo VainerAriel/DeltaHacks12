@@ -405,7 +405,7 @@ export default function BusinessPresentationPracticePage() {
                   <div className="p-4 bg-muted rounded-md">
                     <p className="text-sm font-medium mb-2">Suggested Prompt:</p>
                     <p className="text-sm italic">
-                      "Present a new product idea to your team. Explain the problem it solves and its key features."
+                      &quot;Present a new product idea to your team. Explain the problem it solves and its key features.&quot;
                     </p>
                   </div>
                   <div className="p-4 bg-muted rounded-md">

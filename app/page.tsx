@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,20 +65,13 @@ export default function Home() {
           <div className="relative z-10 max-w-4xl mx-auto text-center space-y-8">
             <div className="space-y-4">
               <div className="relative inline-block">
-                <img 
+                <Image 
                   src="/FluencyLab.png" 
                   alt="Fluency Lab" 
+                  width={400}
+                  height={200}
                   className="mx-auto max-w-md w-full h-auto drop-shadow-2xl"
-                  style={{ 
-                    display: 'block'
-                  }}
-                  onError={(e) => {
-                    console.error('Image failed to load:', e);
-                    console.error('Attempted to load:', (e.target as HTMLImageElement).src);
-                  }}
-                  onLoad={() => {
-                    console.log('Logo image loaded successfully');
-                  }}
+                  priority
                 />
               </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
