@@ -34,7 +34,6 @@ interface ReferenceDocument {
 async function extractTextContent(file: File, fileType: string): Promise<string> {
   if (fileType === 'application/pdf') {
     // Use require for pdf-parse (server-side only, works better with Next.js)
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const pdfParse = require('pdf-parse');
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
