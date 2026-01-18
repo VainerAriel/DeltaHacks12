@@ -42,6 +42,31 @@ const ProgressChart = dynamic(
         return `Session ${value}`;
       };
 
+      // Calculate ticks based on data length
+      // If more than 10 sessions, show every nth session to avoid overlap
+      const dataLength = data.length;
+      let ticks: number[];
+      let interval: number | 'preserveStartEnd';
+      
+      if (dataLength <= 10) {
+        // Show all sessions if 10 or fewer
+        ticks = data.map((_, index) => index + 1);
+        interval = 0;
+      } else {
+        // Calculate interval to show approximately 10 ticks
+        const tickInterval = Math.ceil(dataLength / 10);
+        // Generate ticks: first, last, and every nth in between
+        ticks = [];
+        for (let i = 0; i < dataLength; i += tickInterval) {
+          ticks.push(i + 1);
+        }
+        // Always include the last session
+        if (ticks[ticks.length - 1] !== dataLength) {
+          ticks.push(dataLength);
+        }
+        interval = 'preserveStartEnd';
+      }
+
       return (
         <ResponsiveContainer width="100%" height={350}>
           <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -60,8 +85,8 @@ const ProgressChart = dynamic(
               type="number"
               domain={[0.5, 'dataMax + 0.5']}
               allowDecimals={false}
-              interval={0}
-              ticks={data.map((_, index) => index + 1)}
+              interval={interval}
+              ticks={ticks}
             />
             <YAxis 
               domain={[0, 100]} 
